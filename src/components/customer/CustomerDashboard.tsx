@@ -1,0 +1,456 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
+import { getCustomerUser } from '../../lib/auth';
+import { Purchase, EMISchedule, Customer } from '../../types';
+import { Card, CardContent, CardHeader } from '../ui/Card';
+import { Badge } from '../ui/Badge';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { Modal } from '../ui/Modal';
+import { 
+  CreditCard, 
+  Calendar, 
+  CheckCircle, 
+  Clock, 
+  AlertTriangle,
+  TrendingUp,
+  DollarSign,
+  Smartphone,
+  Settings,
+  Save
+} from 'lucide-react';
+
+interface ExtendedPurchase extends Purchase {
+  emi_schedules?: EMISchedule[];
+}
+
+export const CustomerDashboard: React.FC = () => {
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [purchases, setPurchases] = useState<ExtendedPurchase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [upiId, setUpiId] = useState('');
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [stats, setStats] = useState({
+    totalPaid: 0,
+    totalPending: 0,
+    nextDueDate: null as string | null,
+    nextDueAmount: 0
+  });
+
+  useEffect(() => {
+    const customerData = getCustomerUser();
+    setCustomer(customerData);
+    if (customerData) {
+      fetchCustomerData(customerData.mobile);
+      fetchUpiId();
+    }
+  }, []);
+
+  const fetchUpiId = async () => {
+    try {
+      const { data } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'upi_id')
+        .maybeSingle();
+      
+      setUpiId(data?.value || 'jadhavsuresh2512@axl');
+    } catch (error) {
+      console.error('Error fetching UPI ID:', error);
+      setUpiId('jadhavsuresh2512@axl');
+    }
+  };
+
+  const fetchCustomerData = async (mobile: string) => {
+    try {
+      // Get customer data by mobile
+      const { data: customerData, error: customerError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('mobile', mobile)
+        .single();
+
+      if (customerError) throw customerError;
+      setCustomer(customerData);
+
+      // Fetch customer purchases with EMI schedules
+      const { data: purchaseData, error: purchaseError } = await supabase
+        .from('purchases')
+        .select(`
+          *,
+          emi_schedules:emi_schedule(*)
+        `)
+        .eq('customer_id', customerData.id);
+
+      if (purchaseError) throw purchaseError;
+
+      const purchasesWithSchedules = purchaseData || [];
+      setPurchases(purchasesWithSchedules);
+
+      // Calculate stats
+      let totalPaid = 0;
+      let totalPending = 0;
+      let nextDue: { date: string; amount: number } | null = null;
+
+      purchasesWithSchedules.forEach(purchase => {
+        purchase.emi_schedules?.forEach(emi => {
+          if (emi.status === 'paid') {
+            totalPaid += emi.total_amount + emi.late_fee;
+          } else {
+            totalPending += emi.total_amount;
+            
+            // Find next due date
+            if (!nextDue || emi.due_date < nextDue.date) {
+              nextDue = { date: emi.due_date, amount: emi.total_amount };
+            }
+          }
+        });
+      });
+
+      setStats({
+        totalPaid,
+        totalPending,
+        nextDueDate: nextDue?.date || null,
+        nextDueAmount: nextDue?.amount || 0
+      });
+    } catch (error) {
+      console.error('Error fetching customer data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePayment = (emiId: string, amount: number) => {
+    console.log('Payment initiated for EMI:', emiId, 'Amount:', amount, 'UPI ID:', upiId);
+    
+    // Create payment URL with proper encoding
+    const merchantName = encodeURIComponent('Suresh Patel Kirana EMI');
+    const transactionNote = encodeURIComponent(`EMI Payment ${emiId.substring(0, 8)}`);
+    
+    // PhonePe deep link
+    const phonepeUrl = `phonepe://pay?pa=${upiId}&pn=${merchantName}&am=${amount}&cu=INR&tn=${transactionNote}`;
+    
+    // Generic UPI intent
+    const upiUrl = `upi://pay?pa=${upiId}&pn=${merchantName}&am=${amount}&cu=INR&tn=${transactionNote}`;
+    
+    // Show confirmation dialog
+    const confirmed = confirm(`Pay ₹${amount} for EMI installment?\n\nThis will redirect to your payment app.`);
+    
+    if (!confirmed) return;
+    
+    // Try to open PhonePe app first
+    console.log('Trying PhonePe URL:', phonepeUrl);
+    
+    // Create a temporary link and click it
+    const link = document.createElement('a');
+    link.href = phonepeUrl;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Fallback to generic UPI after a short delay
+    setTimeout(() => {
+      console.log('Fallback to UPI URL:', upiUrl);
+      const fallbackLink = document.createElement('a');
+      fallbackLink.href = upiUrl;
+      fallbackLink.target = '_blank';
+      document.body.appendChild(fallbackLink);
+      fallbackLink.click();
+      document.body.removeChild(fallbackLink);
+    }, 2000);
+    
+    // Show instructions to user
+    setTimeout(() => {
+      alert('If the payment app didn\'t open automatically, please:\n\n1. Open your UPI app (PhonePe, GPay, Paytm, etc.)\n2. Scan QR code or enter UPI ID: ' + upiId + '\n3. Enter amount: ₹' + amount + '\n4. Complete the payment\n\nAfter payment, contact admin to confirm.');
+    }, 3000);
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      alert('Password must be at least 4 characters long');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ password: newPassword })
+        .eq('mobile', customer?.mobile);
+
+      if (error) throw error;
+
+      alert('Password updated successfully');
+      setIsPasswordModalOpen(false);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error('Error updating password:', error);
+      alert('Failed to update password');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const getStatusBadge = (status: string, dueDate: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    const isOverdue = status === 'pending' && dueDate < today;
+
+    if (status === 'paid') {
+      return <Badge variant="success">Paid</Badge>;
+    } else if (isOverdue) {
+      return <Badge variant="danger">Overdue</Badge>;
+    } else {
+      return <Badge variant="warning">Pending</Badge>;
+    }
+  };
+
+  const getStatusIcon = (status: string, dueDate: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    const isOverdue = status === 'pending' && dueDate < today;
+
+    if (status === 'paid') {
+      return <CheckCircle className="w-4 h-4 text-green-600" />;
+    } else if (isOverdue) {
+      return <AlertTriangle className="w-4 h-4 text-red-600" />;
+    } else {
+      return <Clock className="w-4 h-4 text-yellow-600" />;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-16 bg-gray-200 rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Welcome, {customer?.name}!</h1>
+            <p className="text-gray-600">Here's your EMI overview</p>
+          </div>
+          <Button
+            onClick={() => setIsPasswordModalOpen(true)}
+            variant="secondary"
+            className="flex items-center"
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Change Password
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Total Paid</p>
+                <p className="text-2xl font-bold text-green-600">₹{stats.totalPaid.toFixed(2)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <TrendingUp className="w-6 h-6 text-orange-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Pending</p>
+                <p className="text-2xl font-bold text-orange-600">₹{stats.totalPending.toFixed(2)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Calendar className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Next Due</p>
+                <p className="text-sm font-bold text-blue-600">
+                  {stats.nextDueDate ? new Date(stats.nextDueDate).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <DollarSign className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Next Amount</p>
+                <p className="text-xl font-bold text-purple-600">₹{stats.nextDueAmount.toFixed(2)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Purchases and EMI Schedules */}
+      {purchases.map((purchase) => (
+        <Card key={purchase.id}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <CreditCard className="w-5 h-5 text-blue-600 mr-2" />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{purchase.product_name}</h3>
+                  <p className="text-sm text-gray-500">
+                    Total: ₹{purchase.total_price} | EMI: ₹{purchase.emi_amount} x {purchase.tenure} months
+                  </p>
+                </div>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                purchase.status === 'active' 
+                  ? 'bg-green-100 text-green-800' 
+                  : purchase.status === 'completed'
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-red-100 text-red-800'
+              }`}>
+                {purchase.status}
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-2">EMI #</th>
+                    <th className="text-left py-2">Due Date</th>
+                    <th className="text-left py-2">Principal</th>
+                    <th className="text-left py-2">Interest</th>
+                    <th className="text-left py-2">Total</th>
+                    <th className="text-left py-2">Late Fee</th>
+                    <th className="text-left py-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {purchase.emi_schedules?.map((emi) => (
+                    <tr key={emi.id} className="border-b border-gray-100">
+                      <td className="py-3">
+                        <div className="flex items-center">
+                          {getStatusIcon(emi.status, emi.due_date)}
+                          <span className="ml-2">{emi.installment_number}</span>
+                        </div>
+                      </td>
+                      <td className="py-3">{new Date(emi.due_date).toLocaleDateString()}</td>
+                      <td className="py-3 text-blue-600">₹{emi.principal_amount}</td>
+                      <td className="py-3 text-orange-600">₹{emi.interest_amount}</td>
+                      <td className="py-3 font-semibold">₹{emi.total_amount}</td>
+                      <td className="py-3 text-red-600">
+                        {emi.late_fee > 0 ? `₹${emi.late_fee}` : '-'}
+                      </td>
+                      <td className="py-3">
+                        <div className="flex items-center space-x-2">
+                          {getStatusBadge(emi.status, emi.due_date)}
+                          {emi.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handlePayment(emi.id, emi.total_amount + emi.late_fee)}
+                              className="ml-2 flex items-center"
+                            >
+                              <Smartphone className="w-3 h-3 mr-1" />
+                              Pay
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+
+      {purchases.length === 0 && (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">No purchases found</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Change Password Modal */}
+      <Modal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        title="Change Password"
+      >
+        <form onSubmit={handlePasswordChange} className="space-y-4">
+          <Input
+            label="New Password"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+            minLength={4}
+          />
+          <Input
+            label="Confirm Password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            minLength={4}
+          />
+          <div className="flex justify-end space-x-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsPasswordModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" loading={passwordLoading}>
+              <Save className="w-4 h-4 mr-2" />
+              Update Password
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+};
