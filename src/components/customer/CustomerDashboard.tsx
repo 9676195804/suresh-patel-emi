@@ -124,49 +124,52 @@ export const CustomerDashboard: React.FC = () => {
   };
 
   const handlePayment = (emiId: string, amount: number) => {
-    console.log('Payment initiated for EMI:', emiId, 'Amount:', amount, 'UPI ID:', upiId);
+    const phoneNumber = '9676195804';
+    const emiReference = emiId.substring(0, 8);
     
-    // Create payment URL with proper encoding
-    const merchantName = encodeURIComponent('Suresh Patel Kirana EMI');
-    const transactionNote = encodeURIComponent(`EMI Payment ${emiId.substring(0, 8)}`);
+    // Show payment instructions without opening any app
+    const paymentInstructions = `
+💳 EMI Payment Instructions
+
+Amount to Pay: ₹${amount}
+EMI Reference: ${emiReference}
+
+📱 Payment Options:
+
+1️⃣ PhonePe:
+   • Open PhonePe app
+   • Tap "To Mobile Number"
+   • Enter: ${phoneNumber}
+   • Amount: ₹${amount}
+   • Add note: EMI ${emiReference}
+
+2️⃣ Google Pay:
+   • Open Google Pay
+   • Tap "Pay"
+   • Enter mobile: ${phoneNumber}
+   • Amount: ₹${amount}
+   • Add note: EMI ${emiReference}
+
+3️⃣ Paytm:
+   • Open Paytm
+   • Tap "Pay"
+   • Enter mobile: ${phoneNumber}
+   • Amount: ₹${amount}
+   • Add note: EMI ${emiReference}
+
+4️⃣ Any UPI App:
+   • Open your UPI app
+   • Send money to mobile: ${phoneNumber}
+   • Amount: ₹${amount}
+   • Add note: EMI ${emiReference}
+
+⚠️ Important:
+• Always add EMI reference in payment note
+• Contact admin after payment for confirmation
+• Keep payment screenshot for records
+    `;
     
-    // PhonePe deep link
-    const phonepeUrl = `phonepe://pay?pa=${upiId}&pn=${merchantName}&am=${amount}&cu=INR&tn=${transactionNote}`;
-    
-    // Generic UPI intent
-    const upiUrl = `upi://pay?pa=${upiId}&pn=${merchantName}&am=${amount}&cu=INR&tn=${transactionNote}`;
-    
-    // Show confirmation dialog
-    const confirmed = confirm(`Pay ₹${amount} for EMI installment?\n\nThis will redirect to your payment app.`);
-    
-    if (!confirmed) return;
-    
-    // Try to open PhonePe app first
-    console.log('Trying PhonePe URL:', phonepeUrl);
-    
-    // Create a temporary link and click it
-    const link = document.createElement('a');
-    link.href = phonepeUrl;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Fallback to generic UPI after a short delay
-    setTimeout(() => {
-      console.log('Fallback to UPI URL:', upiUrl);
-      const fallbackLink = document.createElement('a');
-      fallbackLink.href = upiUrl;
-      fallbackLink.target = '_blank';
-      document.body.appendChild(fallbackLink);
-      fallbackLink.click();
-      document.body.removeChild(fallbackLink);
-    }, 2000);
-    
-    // Show instructions to user
-    setTimeout(() => {
-      alert('If the payment app didn\'t open automatically, please:\n\n1. Open your UPI app (PhonePe, GPay, Paytm, etc.)\n2. Scan QR code or enter UPI ID: ' + upiId + '\n3. Enter amount: ₹' + amount + '\n4. Complete the payment\n\nAfter payment, contact admin to confirm.');
-    }, 3000);
+    alert(paymentInstructions);
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {

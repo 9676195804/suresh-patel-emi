@@ -382,28 +382,31 @@ export const CustomerManagement: React.FC = () => {
               </div>
             </div>
 
-            {/* All EMI Schedules */}
+            {/* EMI Schedules by Product */}
             <div>
               <h4 className="font-semibold mb-3 flex items-center">
-                <Calendar className="w-4 h-4 mr-2" />
-                All EMI Schedules
+                <DollarSign className="w-4 h-4 mr-2" />
+                EMI Schedules by Product
               </h4>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {customerDetails.purchases.map((purchase) => 
-                  (purchase as any).emi_schedules?.map((emi: any) => (
-                    <div key={emi.id} className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                      <div>
-                        <p className="font-medium">{purchase.product_name} - EMI #{emi.installment_number}</p>
-                        <p className="text-sm text-gray-600">
-                          Due: {new Date(emi.due_date).toLocaleDateString()} | ₹{emi.total_amount}
-                        </p>
-                      </div>
-                      <Badge variant={emi.status === 'paid' ? 'success' : emi.status === 'overdue' ? 'danger' : 'warning'}>
-                        {emi.status}
-                      </Badge>
+              <div className="space-y-4 max-h-60 overflow-y-auto">
+                {customerDetails.purchases.map((purchase) => (
+                  <div key={purchase.id} className="border rounded-lg p-3">
+                    <h5 className="font-medium text-gray-900 mb-2">{purchase.product_name}</h5>
+                    <div className="space-y-1">
+                      {(purchase as any).emi_schedules?.map((emi: any) => (
+                        <div key={emi.id} className="flex justify-between items-center text-sm">
+                          <span>EMI #{emi.installment_number} - {new Date(emi.due_date).toLocaleDateString()}</span>
+                          <div className="flex items-center space-x-2">
+                            <span>₹{emi.total_amount}</span>
+                            <Badge variant={emi.status === 'paid' ? 'success' : emi.status === 'overdue' ? 'danger' : 'warning'} size="sm">
+                              {emi.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))
-                )}
+                  </div>
+                ))}
               </div>
             </div>
 
