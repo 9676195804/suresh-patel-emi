@@ -98,7 +98,7 @@ function App() {
 
   // Main application layout
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
       <Navigation
         currentView={currentView}
         onViewChange={setCurrentView}

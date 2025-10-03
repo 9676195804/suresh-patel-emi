@@ -31,30 +31,30 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <div className="bg-blue-600 p-3 rounded-full">
+            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-4 rounded-full shadow-lg">
               <ShoppingBag className="w-8 h-8 text-white" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Suresh Patel Kirana EMI</h1>
-          <p className="text-gray-600 mt-2">Admin Portal</p>
+          <h1 className="text-2xl font-bold text-white">Suresh Patel Kirana EMI</h1>
+          <p className="text-white/80 mt-2">Admin Portal</p>
         </div>
 
-        <Card>
+        <Card className="bg-white/10 backdrop-blur-lg border-white/20">
           <CardHeader>
             <div className="flex items-center space-x-2">
-              <Lock className="w-5 h-5 text-gray-400" />
-              <h2 className="text-xl font-semibold">Admin Login</h2>
+              <Lock className="w-5 h-5 text-white/70" />
+              <h2 className="text-xl font-semibold text-white">Admin Login</h2>
             </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-sm text-red-600">{error}</p>
+                <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-3">
+                  <p className="text-sm text-red-200">{error}</p>
                 </div>
               )}
               
@@ -64,6 +64,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter username"
+                className="bg-white/10 border-white/20 text-white placeholder-white/50"
                 required
               />
               
@@ -73,12 +74,13 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
+                className="bg-white/10 border-white/20 text-white placeholder-white/50"
                 required
               />
               
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
                 loading={loading}
                 disabled={!username || !password}
               >
