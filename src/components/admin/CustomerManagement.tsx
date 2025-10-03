@@ -133,6 +133,7 @@ export const CustomerManagement: React.FC = () => {
     setFormData({
       name: '',
       mobile: '',
+      password: '',
       aadhaar: '',
       pan: '',
       guarantor_name: '',
@@ -140,6 +141,61 @@ export const CustomerManagement: React.FC = () => {
       guarantor_address: '',
       address: ''
     });
+  };
+
+  const handleViewDetails = async (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setLoading(true);
+    
+    try {
+      // Fetch customer purchases with EMI schedules
+      const { data: purchaseData, error: purchaseError } = await supabase
+        .from('purchases')
+        .select(`
+          *,
+          emi_schedules:emi_schedule(*)
+        `)
+        .eq('customer_id', customer.id);
+
+      if (purchaseError) throw purchaseError;
+
+      // Fetch customer payments
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('customer_id', customer.id)
+        .order('payment_date', { ascending: false });
+
+      if (paymentError) throw paymentError;
+
+      // Calculate totals
+      let totalPaid = 0;
+      let totalPending = 0;
+
+      purchaseData?.forEach(purchase => {
+        purchase.emi_schedules?.forEach((emi: any) => {
+          if (emi.status === 'paid') {
+            totalPaid += emi.total_amount + (emi.late_fee || 0);
+          } else {
+            totalPending += emi.total_amount;
+          }
+        });
+      });
+
+      setCustomerDetails({
+        purchases: purchaseData || [],
+        payments: paymentData || [],
+        totalPaid,
+        totalPending
+      });
+
+      setIsDetailsModalOpen(true);
+    } catch (error) {
+      console.error('Error fetching customer details:', error);
+      alert('Error loading customer details');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openAddModal = () => {
