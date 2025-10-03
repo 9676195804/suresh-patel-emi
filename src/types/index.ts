@@ -18,6 +18,11 @@ export interface Purchase {
   product_name: string;
   total_price: number;
   down_payment: number;
+  processing_fee?: number;
+  tds_amount?: number;
+  insurance_amount?: number;
+  documentation_charges?: number;
+  other_charges?: number;
   loan_amount: number;
   tenure: 6 | 12;
   interest_rate: number;

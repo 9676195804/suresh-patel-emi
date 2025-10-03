@@ -21,6 +21,11 @@ export const PurchaseManagement: React.FC = () => {
     product_name: '',
     total_price: '',
     down_payment: '',
+    processing_fee: '',
+    tds_amount: '',
+    insurance_amount: '',
+    documentation_charges: '',
+    other_charges: '',
     tenure: 6 as 6 | 12,
     interest_rate: '',
     start_date: new Date().toISOString().split('T')[0]
@@ -93,7 +98,14 @@ export const PurchaseManagement: React.FC = () => {
     try {
       const totalPrice = parseFloat(formData.total_price);
       const downPayment = parseFloat(formData.down_payment) || 0;
-      const loanAmount = totalPrice - downPayment;
+      const processingFee = parseFloat(formData.processing_fee) || 0;
+      const tdsAmount = parseFloat(formData.tds_amount) || 0;
+      const insuranceAmount = parseFloat(formData.insurance_amount) || 0;
+      const documentationCharges = parseFloat(formData.documentation_charges) || 0;
+      const otherCharges = parseFloat(formData.other_charges) || 0;
+      
+      const totalCharges = processingFee + tdsAmount + insuranceAmount + documentationCharges + otherCharges;
+      const loanAmount = totalPrice - downPayment + totalCharges;
       const interestRate = parseFloat(formData.interest_rate) || defaultInterestRate;
       const emiAmount = calculateEMI(loanAmount, interestRate, formData.tenure);
 
@@ -105,6 +117,11 @@ export const PurchaseManagement: React.FC = () => {
           product_name: formData.product_name,
           total_price: totalPrice,
           down_payment: downPayment,
+          processing_fee: processingFee,
+          tds_amount: tdsAmount,
+          insurance_amount: insuranceAmount,
+          documentation_charges: documentationCharges,
+          other_charges: otherCharges,
           loan_amount: loanAmount,
           tenure: formData.tenure,
           interest_rate: interestRate,
@@ -168,13 +185,27 @@ export const PurchaseManagement: React.FC = () => {
       product_name: '',
       total_price: '',
       down_payment: '',
+      processing_fee: '',
+      tds_amount: '',
+      insurance_amount: '',
+      documentation_charges: '',
+      other_charges: '',
       tenure: 6,
       interest_rate: '',
       start_date: new Date().toISOString().split('T')[0]
     });
   };
 
-  const loanAmount = parseFloat(formData.total_price) - (parseFloat(formData.down_payment) || 0);
+  const totalPrice = parseFloat(formData.total_price) || 0;
+  const downPayment = parseFloat(formData.down_payment) || 0;
+  const processingFee = parseFloat(formData.processing_fee) || 0;
+  const tdsAmount = parseFloat(formData.tds_amount) || 0;
+  const insuranceAmount = parseFloat(formData.insurance_amount) || 0;
+  const documentationCharges = parseFloat(formData.documentation_charges) || 0;
+  const otherCharges = parseFloat(formData.other_charges) || 0;
+  
+  const totalCharges = processingFee + tdsAmount + insuranceAmount + documentationCharges + otherCharges;
+  const loanAmount = totalPrice - downPayment + totalCharges;
   const interestRate = parseFloat(formData.interest_rate) || defaultInterestRate;
   const emiAmount = loanAmount > 0 ? calculateEMI(loanAmount, interestRate, formData.tenure) : 0;
 
@@ -317,6 +348,53 @@ export const PurchaseManagement: React.FC = () => {
             />
           </div>
           
+          {/* Additional Charges Section */}
+          <div className="border-t pt-4">
+            <h4 className="font-medium text-gray-900 mb-3">Additional Charges</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Processing Fee"
+                type="number"
+                step="0.01"
+                value={formData.processing_fee}
+                onChange={(e) => setFormData({ ...formData, processing_fee: e.target.value })}
+                placeholder="0.00"
+              />
+              <Input
+                label="TDS Amount"
+                type="number"
+                step="0.01"
+                value={formData.tds_amount}
+                onChange={(e) => setFormData({ ...formData, tds_amount: e.target.value })}
+                placeholder="0.00"
+              />
+              <Input
+                label="Insurance Amount"
+                type="number"
+                step="0.01"
+                value={formData.insurance_amount}
+                onChange={(e) => setFormData({ ...formData, insurance_amount: e.target.value })}
+                placeholder="0.00"
+              />
+              <Input
+                label="Documentation Charges"
+                type="number"
+                step="0.01"
+                value={formData.documentation_charges}
+                onChange={(e) => setFormData({ ...formData, documentation_charges: e.target.value })}
+                placeholder="0.00"
+              />
+            </div>
+            <Input
+              label="Other Charges"
+              type="number"
+              step="0.01"
+              value={formData.other_charges}
+              onChange={(e) => setFormData({ ...formData, other_charges: e.target.value })}
+              placeholder="0.00"
+            />
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -353,11 +431,25 @@ export const PurchaseManagement: React.FC = () => {
           {loanAmount > 0 && (
             <div className="bg-blue-50 p-4 rounded-lg">
               <h4 className="font-medium text-blue-900 mb-2">EMI Preview</h4>
-              <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-blue-700">Product Price</p>
+                  <p className="font-semibold text-blue-900">₹{totalPrice.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-blue-700">Down Payment</p>
+                  <p className="font-semibold text-blue-900">₹{downPayment.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-blue-700">Total Charges</p>
+                  <p className="font-semibold text-orange-600">₹{totalCharges.toFixed(2)}</p>
+                </div>
                 <div>
                   <p className="text-blue-700">Loan Amount</p>
                   <p className="font-semibold text-blue-900">₹{loanAmount.toFixed(2)}</p>
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm mt-2">
                 <div>
                   <p className="text-blue-700">Interest Rate</p>
                   <p className="font-semibold text-blue-900">{interestRate}% p.a.</p>
@@ -367,6 +459,18 @@ export const PurchaseManagement: React.FC = () => {
                   <p className="font-semibold text-blue-900">₹{emiAmount.toFixed(2)}</p>
                 </div>
               </div>
+              {totalCharges > 0 && (
+                <div className="mt-3 pt-3 border-t border-blue-200">
+                  <p className="text-xs text-blue-600 mb-2">Charges Breakdown:</p>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                    {processingFee > 0 && <span>Processing: ₹{processingFee}</span>}
+                    {tdsAmount > 0 && <span>TDS: ₹{tdsAmount}</span>}
+                    {insuranceAmount > 0 && <span>Insurance: ₹{insuranceAmount}</span>}
+                    {documentationCharges > 0 && <span>Documentation: ₹{documentationCharges}</span>}
+                    {otherCharges > 0 && <span>Other: ₹{otherCharges}</span>}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           
