@@ -31,6 +31,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewChange }) 
 
   const fetchDashboardStats = async () => {
     try {
+      // Check if Supabase is properly configured
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        console.warn('Supabase not configured. Using demo data.');
+        setStats({
+          total_customers: 5,
+          active_loans: 3,
+          overdue_payments: 1,
+          total_outstanding: 25000,
+          monthly_collections: 15000
+        });
+        setLoading(false);
+        return;
+      }
+
       // Fetch total customers
       const { count: customersCount } = await supabase
         .from('customers')
