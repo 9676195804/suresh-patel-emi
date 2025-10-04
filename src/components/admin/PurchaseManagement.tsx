@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Customer, Purchase } from '../../types';
 import { calculateEMI, generateEMISchedule } from '../../lib/emi-calculator';
+import { sendPurchaseWelcomeSMS } from '../../lib/sms-service';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
@@ -148,6 +149,39 @@ export const PurchaseManagement: React.FC = () => {
         .insert(emiSchedule);
 
       if (scheduleError) throw scheduleError;
+
+      // Send welcome SMS to customer
+      try {
+        const { data: customerData } = await supabase
+          .from('customers')
+          .select('name, mobile')
+          .eq('id', formData.customer_id)
+          .single();
+
+        const { data: shopData } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'shop_name')
+          .maybeSingle();
+
+        if (customerData) {
+          const firstEMI = emiSchedule[0];
+          await sendPurchaseWelcomeSMS(
+            customerData.name,
+            customerData.mobile,
+            formData.customer_id,
+            shopData?.value || 'EMI Store',
+            formData.product_name,
+            totalPrice,
+            emiAmount,
+            formData.tenure,
+            firstEMI.due_date
+          );
+        }
+      } catch (smsError) {
+        console.error('Error sending welcome SMS:', smsError);
+        // Don't fail the purchase creation if SMS fails
+      }
 
       setIsModalOpen(false);
       resetForm();
