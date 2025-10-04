@@ -26,7 +26,7 @@ export const PurchaseManagement: React.FC = () => {
     insurance_amount: '',
     documentation_charges: '',
     other_charges: '',
-    tenure: 6 as 6 | 12,
+    tenure: 6,
     interest_rate: '',
     start_date: new Date().toISOString().split('T')[0]
   });
@@ -402,12 +402,15 @@ export const PurchaseManagement: React.FC = () => {
               </label>
               <select
                 value={formData.tenure}
-                onChange={(e) => setFormData({ ...formData, tenure: parseInt(e.target.value) as 6 | 12 })}
+                onChange={(e) => setFormData({ ...formData, tenure: parseInt(e.target.value) })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
+                <option value={3}>3 months</option>
                 <option value={6}>6 months</option>
                 <option value={12}>12 months</option>
+                <option value={18}>18 months</option>
+                <option value={24}>24 months</option>
               </select>
             </div>
             <Input
