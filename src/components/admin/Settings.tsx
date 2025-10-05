@@ -43,22 +43,26 @@ export const Settings: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      for (const [key, value] of Object.entries(settings)) {
-        const { error } = await supabase
-          .from('settings')
-          .upsert({
-            key,
-            value,
-            updated_at: new Date().toISOString()
-          });
-        
-        if (error) throw error;
-      }
+      // Prepare settings data for upsert
+      const settingsToUpdate = Object.entries(settings).map(([key, value]) => ({
+        key,
+        value: value || '',
+        updated_at: new Date().toISOString()
+      }));
+
+      const { error } = await supabase
+        .from('settings')
+        .upsert(settingsToUpdate, { 
+          onConflict: 'key',
+          ignoreDuplicates: false 
+        });
+      
+      if (error) throw error;
       
       alert('Settings saved successfully!');
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('Error saving settings');
+      alert(`Error saving settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setSaving(false);
     }

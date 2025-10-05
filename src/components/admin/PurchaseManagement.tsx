@@ -235,6 +235,8 @@ export const PurchaseManagement: React.FC = () => {
   const loanAmount = totalPrice - downPayment + totalCharges;
   const interestRate = parseFloat(formData.interest_rate) || defaultInterestRate;
   const emiAmount = loanAmount > 0 ? calculateEMI(loanAmount, interestRate, formData.tenure) : 0;
+  const totalInterest = (emiAmount * formData.tenure) - loanAmount;
+  const finalPrice = totalPrice + totalCharges + totalInterest;
 
   return (
     <div className="p-6 space-y-6">
@@ -461,7 +463,7 @@ export const PurchaseManagement: React.FC = () => {
           {loanAmount > 0 && (
             <div className="bg-blue-50 p-4 rounded-lg">
               <h4 className="font-medium text-blue-900 mb-2">EMI Preview</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                 <div>
                   <p className="text-blue-700">Product Price</p>
                   <p className="font-semibold text-blue-900">₹{totalPrice.toFixed(2)}</p>
@@ -478,8 +480,12 @@ export const PurchaseManagement: React.FC = () => {
                   <p className="text-blue-700">Loan Amount</p>
                   <p className="font-semibold text-blue-900">₹{loanAmount.toFixed(2)}</p>
                 </div>
+                <div>
+                  <p className="text-blue-700">Total Interest</p>
+                  <p className="font-semibold text-purple-600">₹{totalInterest.toFixed(2)}</p>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 text-sm mt-2">
+              <div className="grid grid-cols-3 gap-4 text-sm mt-3 pt-3 border-t border-blue-200">
                 <div>
                   <p className="text-blue-700">Interest Rate</p>
                   <p className="font-semibold text-blue-900">{interestRate}% p.a.</p>
@@ -487,6 +493,10 @@ export const PurchaseManagement: React.FC = () => {
                 <div>
                   <p className="text-blue-700">EMI Amount</p>
                   <p className="font-semibold text-blue-900">₹{emiAmount.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-blue-700 font-bold">Final Price</p>
+                  <p className="font-bold text-green-600 text-lg">₹{finalPrice.toFixed(2)}</p>
                 </div>
               </div>
               {totalCharges > 0 && (
@@ -501,6 +511,18 @@ export const PurchaseManagement: React.FC = () => {
                   </div>
                 </div>
               )}
+              <div className="mt-3 pt-3 border-t border-blue-200 bg-green-50 -mx-4 -mb-4 px-4 py-3 rounded-b-lg">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-green-700">Total EMI Payments</p>
+                    <p className="font-semibold text-green-900">₹{(emiAmount * formData.tenure).toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-green-700">Customer Pays Total</p>
+                    <p className="font-bold text-green-900 text-lg">₹{(downPayment + (emiAmount * formData.tenure)).toFixed(2)}</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
           
