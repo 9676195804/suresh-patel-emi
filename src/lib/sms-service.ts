@@ -1,5 +1,11 @@
 import { supabase } from './supabase';
 
+interface Fast2SMSResponse {
+  return: boolean;
+  request_id: string;
+  message: string[];
+}
+
 export const sendSMS = async (
   mobile: string,
   message: string,
@@ -7,8 +13,56 @@ export const sendSMS = async (
   smsType: string
 ) => {
   try {
-    // In a real application, integrate with SMS API (Twilio, Fast2SMS, MSG91)
-    console.log(`SMS to ${mobile}: ${message}`);
+    // Get SMS settings
+    const { data: settings } = await supabase
+      .from('settings')
+      .select('key, value')
+      .in('key', ['sms_api_key', 'sms_sender_id', 'sms_api_url']);
+
+    const settingsMap: Record<string, string> = {};
+    settings?.forEach(setting => {
+      settingsMap[setting.key] = setting.value;
+    });
+
+    const apiKey = settingsMap.sms_api_key;
+    const senderId = settingsMap.sms_sender_id || 'TXTLCL';
+    const apiUrl = settingsMap.sms_api_url || 'https://www.fast2sms.com/dev/bulkV2';
+
+    if (!apiKey) {
+      console.log(`Demo SMS to ${mobile}: ${message}`);
+      
+      // Log SMS to database
+      await supabase
+        .from('sms_logs')
+        .insert({
+          customer_id: customerId,
+          mobile,
+          message,
+          sms_type: smsType,
+          status: 'sent',
+          response: 'Demo mode - SMS not actually sent'
+        });
+      
+      return { success: true, demo: true };
+    }
+
+    // Send SMS via Fast2SMS API
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender_id: senderId,
+        message: message,
+        language: 'english',
+        route: 'p',
+        numbers: mobile
+      })
+    });
+
+    const result: Fast2SMSResponse = await response.json();
     
     // Log SMS to database
     await supabase
@@ -18,11 +72,15 @@ export const sendSMS = async (
         mobile,
         message,
         sms_type: smsType,
-        status: 'sent',
-        response: 'Demo SMS sent successfully'
+        status: result.return ? 'sent' : 'failed',
+        response: JSON.stringify(result)
       });
     
-    return { success: true };
+    return { 
+      success: result.return, 
+      requestId: result.request_id,
+      message: result.message 
+    };
   } catch (error) {
     console.error('SMS Error:', error);
     
@@ -42,38 +100,373 @@ export const sendSMS = async (
   }
 };
 
-export const formatPaymentConfirmationSMS = (
+export const sendTestSMS = async (mobile: string, testMessage: string) => {
+  try {
+    // Get SMS settings
+    const { data: settings } = await supabase
+      .from('settings')
+      .select('key, value')
+      .in('key', ['sms_api_key', 'sms_sender_id', 'sms_api_url']);
+
+    const settingsMap: Record<string, string> = {};
+    settings?.forEach(setting => {
+      settingsMap[setting.key] = setting.value;
+    });
+
+    const apiKey = settingsMap.sms_api_key;
+    const senderId = settingsMap.sms_sender_id || 'TXTLCL';
+    const apiUrl = settingsMap.sms_api_url || 'https://www.fast2sms.com/dev/bulkV2';
+
+    if (!apiKey) {
+      return { success: false, error: 'SMS API key not configured' };
+    }
+
+    // Send test SMS via Fast2SMS API
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender_id: senderId,
+        message: testMessage,
+        language: 'english',
+        route: 'p',
+        numbers: mobile
+      })
+    });
+
+    const result: Fast2SMSResponse = await response.json();
+    
+    // Log test SMS
+    await supabase
+      .from('sms_logs')
+      .insert({
+        customer_id: null,
+        mobile,
+        message: testMessage,
+        sms_type: 'test',
+        status: result.return ? 'sent' : 'failed',
+        response: JSON.stringify(result)
+      });
+    
+    return { 
+      success: result.return, 
+      requestId: result.request_id,
+      message: result.message,
+      response: result
+    };
+  } catch (error) {
+    console.error('Test SMS Error:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+};
+
+export const replaceMessageVariables = (
+  template: string,
+  variables: Record<string, string | number>
+): string => {
+  let message = template;
+  
+  Object.entries(variables).forEach(([key, value]) => {
+    const placeholder = `{${key}}`;
+    message = message.replace(new RegExp(placeholder, 'g'), String(value));
+  });
+  
+  return message;
+};
+
+export const sendPurchaseWelcomeSMS = async (
   customerName: string,
-  shopName: string,
+  customerMobile: string,
+  customerId: string,
+  productName: string,
+  totalPrice: number,
+  emiAmount: number,
+  tenure: number,
+  firstDueDate: string,
+  shopName: string
+) => {
+  try {
+    // Get template from settings
+    const { data: templateData } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'sms_template_purchase_welcome')
+      .maybeSingle();
+
+    const template = templateData?.value || 
+      'Dear {customer_name}, welcome to {shop_name}! Your purchase of {product_name} worth Rs.{total_price} has been processed. EMI: Rs.{emi_amount} for {tenure} months. First EMI due: {first_due_date}. Thank you!';
+
+    const message = replaceMessageVariables(template, {
+      customer_name: customerName,
+      product_name: productName,
+      total_price: totalPrice,
+      emi_amount: emiAmount,
+      tenure: tenure,
+      first_due_date: firstDueDate,
+      shop_name: shopName
+    });
+
+    return await sendSMS(customerMobile, message, customerId, 'purchase_welcome');
+  } catch (error) {
+    console.error('Error sending purchase welcome SMS:', error);
+    return { success: false, error };
+  }
+};
+
+export const sendPaymentConfirmationSMS = async (
+  customerName: string,
+  customerMobile: string,
+  customerId: string,
   emiAmount: number,
   installmentNumber: number,
-  remainingInstallments: number
+  remainingInstallments: number,
+  shopName: string
 ) => {
-  return `Dear ${customerName}, your EMI payment of Rs.${emiAmount} for installment ${installmentNumber} has been received. ${remainingInstallments} installments remaining. Thank you! - ${shopName}`;
+  try {
+    // Get template from settings
+    const { data: templateData } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'sms_template_payment_confirmation')
+      .maybeSingle();
+
+    const template = templateData?.value || 
+      'Dear {customer_name}, your EMI payment of Rs.{emi_amount} for installment {installment_number} has been received. {remaining_installments} installments remaining. Thank you! - {shop_name}';
+
+    const message = replaceMessageVariables(template, {
+      customer_name: customerName,
+      emi_amount: emiAmount,
+      installment_number: installmentNumber,
+      remaining_installments: remainingInstallments,
+      shop_name: shopName
+    });
+
+    return await sendSMS(customerMobile, message, customerId, 'payment_confirmation');
+  } catch (error) {
+    console.error('Error sending payment confirmation SMS:', error);
+    return { success: false, error };
+  }
 };
 
-export const formatReminderSMS = (
+export const sendPaymentReminderSMS = async (
   customerName: string,
-  shopName: string,
+  customerMobile: string,
+  customerId: string,
   emiAmount: number,
-  dueDate: string
+  dueDate: string,
+  shopName: string
 ) => {
-  return `Dear ${customerName}, reminder: Your EMI of Rs.${emiAmount} is due on ${dueDate}. Please make payment on time. - ${shopName}`;
+  try {
+    // Get template from settings
+    const { data: templateData } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'sms_template_payment_reminder')
+      .maybeSingle();
+
+    const template = templateData?.value || 
+      'Dear {customer_name}, reminder: Your EMI of Rs.{emi_amount} is due on {due_date}. Please make payment on time. - {shop_name}';
+
+    const message = replaceMessageVariables(template, {
+      customer_name: customerName,
+      emi_amount: emiAmount,
+      due_date: dueDate,
+      shop_name: shopName
+    });
+
+    return await sendSMS(customerMobile, message, customerId, 'payment_reminder');
+  } catch (error) {
+    console.error('Error sending payment reminder SMS:', error);
+    return { success: false, error };
+  }
 };
 
-export const formatLateFeeNotificationSMS = (
+export const sendOverdueNotificationSMS = async (
   customerName: string,
-  shopName: string,
+  customerMobile: string,
+  customerId: string,
   emiAmount: number,
-  lateFee: number
+  lateFee: number,
+  shopName: string
 ) => {
-  return `Dear ${customerName}, your EMI of Rs.${emiAmount} is overdue. Late fee of Rs.${lateFee} has been added. Please pay immediately. - ${shopName}`;
+  try {
+    // Get template from settings
+    const { data: templateData } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'sms_template_overdue_notice')
+      .maybeSingle();
+
+    const template = templateData?.value || 
+      'Dear {customer_name}, your EMI of Rs.{emi_amount} is overdue. Late fee of Rs.{late_fee} has been added. Please pay immediately. - {shop_name}';
+
+    const message = replaceMessageVariables(template, {
+      customer_name: customerName,
+      emi_amount: emiAmount,
+      late_fee: lateFee,
+      shop_name: shopName
+    });
+
+    return await sendSMS(customerMobile, message, customerId, 'overdue_notice');
+  } catch (error) {
+    console.error('Error sending overdue notification SMS:', error);
+    return { success: false, error };
+  }
 };
 
-export const formatNOCMessage = (
+export const sendNOCSMS = async (
   customerName: string,
-  shopName: string,
-  productName: string
+  customerMobile: string,
+  customerId: string,
+  productName: string,
+  shopName: string
 ) => {
-  return `Dear ${customerName}, congratulations! You have successfully completed all EMI payments for ${productName}. No Objection Certificate (NOC) is hereby issued. Thank you for your business! - ${shopName}`;
+  try {
+    // Get template from settings
+    const { data: templateData } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'sms_template_noc')
+      .maybeSingle();
+
+    const template = templateData?.value || 
+      'Dear {customer_name}, congratulations! You have successfully completed all EMI payments for {product_name}. No Objection Certificate (NOC) is hereby issued. Thank you for your business! - {shop_name}';
+
+    const message = replaceMessageVariables(template, {
+      customer_name: customerName,
+      product_name: productName,
+      shop_name: shopName
+    });
+
+    return await sendSMS(customerMobile, message, customerId, 'noc');
+  } catch (error) {
+    console.error('Error sending NOC SMS:', error);
+    return { success: false, error };
+  }
+};
+
+// Automated reminder system
+export const sendDailyReminders = async () => {
+  try {
+    console.log('Running daily SMS reminders...');
+    
+    // Get tomorrow's date
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowDate = tomorrow.toISOString().split('T')[0];
+
+    // Get shop name
+    const { data: shopData } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'shop_name')
+      .maybeSingle();
+    
+    const shopName = shopData?.value || 'Suresh Patel Kirana EMI';
+
+    // Get pending EMIs due tomorrow
+    const { data: pendingEMIs } = await supabase
+      .from('emi_schedule')
+      .select(`
+        *,
+        purchase:purchases(
+          customer:customers(*)
+        )
+      `)
+      .eq('status', 'pending')
+      .eq('due_date', tomorrowDate);
+
+    if (!pendingEMIs || pendingEMIs.length === 0) {
+      console.log('No EMIs due tomorrow');
+      return;
+    }
+
+    // Send reminders
+    for (const emi of pendingEMIs) {
+      if (emi.purchase?.customer) {
+        const customer = emi.purchase.customer;
+        await sendPaymentReminderSMS(
+          customer.name,
+          customer.mobile,
+          customer.id,
+          emi.total_amount,
+          new Date(emi.due_date).toLocaleDateString(),
+          shopName
+        );
+      }
+    }
+
+    console.log(`Sent ${pendingEMIs.length} payment reminders`);
+  } catch (error) {
+    console.error('Error sending daily reminders:', error);
+  }
+};
+
+export const sendOverdueNotifications = async () => {
+  try {
+    console.log('Running overdue notifications...');
+    
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get shop name and late fee settings
+    const { data: settings } = await supabase
+      .from('settings')
+      .select('key, value')
+      .in('key', ['shop_name', 'late_fee_per_day']);
+
+    const settingsMap: Record<string, string> = {};
+    settings?.forEach(setting => {
+      settingsMap[setting.key] = setting.value;
+    });
+
+    const shopName = settingsMap.shop_name || 'Suresh Patel Kirana EMI';
+    const lateFeePerDay = parseFloat(settingsMap.late_fee_per_day || '50');
+
+    // Get overdue EMIs
+    const { data: overdueEMIs } = await supabase
+      .from('emi_schedule')
+      .select(`
+        *,
+        purchase:purchases(
+          customer:customers(*)
+        )
+      `)
+      .eq('status', 'pending')
+      .lt('due_date', today);
+
+    if (!overdueEMIs || overdueEMIs.length === 0) {
+      console.log('No overdue EMIs found');
+      return;
+    }
+
+    // Send overdue notifications
+    for (const emi of overdueEMIs) {
+      if (emi.purchase?.customer) {
+        const customer = emi.purchase.customer;
+        
+        // Calculate late fee
+        const dueDate = new Date(emi.due_date);
+        const todayDate = new Date(today);
+        const diffTime = todayDate.getTime() - dueDate.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const lateFee = diffDays * lateFeePerDay;
+
+        await sendOverdueNotificationSMS(
+          customer.name,
+          customer.mobile,
+          customer.id,
+          emi.total_amount,
+          lateFee,
+          shopName
+        );
+      }
+    }
+
+    console.log(`Sent ${overdueEMIs.length} overdue notifications`);
+  } catch (error) {
+    console.error('Error sending overdue notifications:', error);
+  }
 };

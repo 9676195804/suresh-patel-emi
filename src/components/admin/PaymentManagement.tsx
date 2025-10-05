@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { EMISchedule, Purchase, Customer } from '../../types';
 import { calculateLateFee } from '../../lib/emi-calculator';
-import { sendSMS, formatPaymentConfirmationSMS, formatNOCMessage } from '../../lib/sms-service';
+import { sendPaymentConfirmationSMS, sendNOCSMS } from '../../lib/sms-service';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Badge } from '../ui/Badge';
@@ -103,17 +103,18 @@ export const PaymentManagement: React.FC = () => {
       
       const shopName = shopData?.value || 'Suresh Patel Kirana EMI';
 
-      // Send payment confirmation SMS
+      // Send SMS notification
       if (emiSchedule.purchase?.customer) {
         const customer = emiSchedule.purchase.customer;
-        let message: string;
 
         if (remainingCount === 0) {
-          // Last EMI - send NOC
-          message = formatNOCMessage(
+          // Last EMI - send NOC SMS
+          await sendNOCSMS(
             customer.name,
+            customer.mobile,
+            customer.id,
+            emiSchedule.purchase.product_name,
             shopName,
-            emiSchedule.purchase.product_name
           );
           
           // Update purchase status to completed
@@ -122,22 +123,17 @@ export const PaymentManagement: React.FC = () => {
             .update({ status: 'completed' })
             .eq('id', emiSchedule.purchase_id);
         } else {
-          // Regular payment confirmation
-          message = formatPaymentConfirmationSMS(
+          // Regular payment confirmation SMS
+          await sendPaymentConfirmationSMS(
             customer.name,
-            shopName,
+            customer.mobile,
+            customer.id,
             emiSchedule.total_amount,
             emiSchedule.installment_number,
-            remainingCount
+            remainingCount,
+            shopName,
           );
         }
-
-        await sendSMS(
-          customer.mobile,
-          message,
-          customer.id,
-          remainingCount === 0 ? 'noc' : 'payment_confirmation'
-        );
       }
 
       fetchEMISchedules();

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Customer, Purchase } from '../../types';
 import { calculateEMI, generateEMISchedule } from '../../lib/emi-calculator';
+import { sendPurchaseWelcomeSMS } from '../../lib/sms-service';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
@@ -148,6 +149,32 @@ export const PurchaseManagement: React.FC = () => {
         .insert(emiSchedule);
 
       if (scheduleError) throw scheduleError;
+
+      // Send welcome SMS to customer
+      const customer = customers.find(c => c.id === formData.customer_id);
+      if (customer) {
+        const { data: shopData } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'shop_name')
+          .maybeSingle();
+        
+        const shopName = shopData?.value || 'Suresh Patel Kirana EMI';
+        const firstDueDate = new Date(formData.start_date);
+        firstDueDate.setMonth(firstDueDate.getMonth() + 1);
+        
+        await sendPurchaseWelcomeSMS(
+          customer.name,
+          customer.mobile,
+          customer.id,
+          formData.product_name,
+          totalPrice,
+          emiAmount,
+          formData.tenure,
+          firstDueDate.toLocaleDateString(),
+          shopName
+        );
+      }
 
       setIsModalOpen(false);
       resetForm();
