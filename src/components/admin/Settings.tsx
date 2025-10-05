@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { sendTestSMS, smsScheduler } from '../../lib/scheduler';
+import { sendTestSMS } from '../../lib/sms-service';
+import { smsScheduler } from '../../lib/scheduler';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Card, CardContent, CardHeader } from '../ui/Card';
@@ -32,6 +33,29 @@ export const Settings: React.FC = () => {
         settingsMap[setting.key] = setting.value;
       });
       
+      // Pre-fill with your API key if not already set
+      if (!settingsMap.sms_api_key) {
+        settingsMap.sms_api_key = 'oFr2AadnjEWZKCvcyxN0VSzYquBQGl93kpwHM7JDRbU4OfmhPT3zwgxpMtlOkRfPquWZcsH6ITSNX9Ba';
+      }
+      if (!settingsMap.sms_sender_id) {
+        settingsMap.sms_sender_id = 'TXTLCL';
+      }
+      if (!settingsMap.sms_api_url) {
+        settingsMap.sms_api_url = 'https://www.fast2sms.com/dev/bulkV2';
+      }
+      if (!settingsMap.shop_name) {
+        settingsMap.shop_name = 'Suresh Patel Kirana EMI';
+      }
+      if (!settingsMap.default_interest_rate) {
+        settingsMap.default_interest_rate = '24';
+      }
+      if (!settingsMap.late_fee_per_day) {
+        settingsMap.late_fee_per_day = '50';
+      }
+      if (!settingsMap.upi_id) {
+        settingsMap.upi_id = 'jadhavsuresh2512@axl';
+      }
+      
       setSettings(settingsMap);
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -43,21 +67,26 @@ export const Settings: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Prepare settings data for upsert
-      const settingsToUpdate = Object.entries(settings).map(([key, value]) => ({
+      // Create array of settings to upsert
+      const settingsArray = Object.entries(settings).map(([key, value]) => ({
         key,
         value: value || '',
         updated_at: new Date().toISOString()
       }));
 
-      const { error } = await supabase
-        .from('settings')
-        .upsert(settingsToUpdate, { 
-          onConflict: 'key',
-          ignoreDuplicates: false 
-        });
-      
-      if (error) throw error;
+      // Use individual upserts to avoid conflicts
+      for (const setting of settingsArray) {
+        const { error } = await supabase
+          .from('settings')
+          .upsert(setting, { 
+            onConflict: 'key'
+          });
+        
+        if (error) {
+          console.error(`Error saving setting ${setting.key}:`, error);
+          throw error;
+        }
+      }
       
       alert('Settings saved successfully!');
     } catch (error) {
@@ -83,7 +112,6 @@ export const Settings: React.FC = () => {
 
     setTestLoading(true);
     try {
-      const { sendTestSMS } = await import('../../lib/sms-service');
       const result = await sendTestSMS(testMobile, testMessage);
       
       if (result.success) {
@@ -192,7 +220,7 @@ export const Settings: React.FC = () => {
               type="password"
               value={settings.sms_api_key || ''}
               onChange={(e) => updateSetting('sms_api_key', e.target.value)}
-              placeholder="oFr2AadnjEWZKCvcyxN0VSzYquBQGl93kpwHM7JDRbU4OfmhPT3zwgxpMtlOkRfPquWZcsH6ITSNX9Ba"
+              placeholder="Your Fast2SMS API Key"
             />
             <Input
               label="SMS Sender ID"

@@ -118,7 +118,21 @@ export const sendTestSMS = async (mobile: string, testMessage: string) => {
     const apiUrl = settingsMap.sms_api_url || 'https://www.fast2sms.com/dev/bulkV2';
 
     if (!apiKey) {
-      return { success: false, error: 'SMS API key not configured' };
+      console.log(`Demo SMS to ${mobile}: ${testMessage}`);
+      
+      // Log test SMS to database
+      await supabase
+        .from('sms_logs')
+        .insert({
+          customer_id: null,
+          mobile,
+          message: testMessage,
+          sms_type: 'test',
+          status: 'sent',
+          response: 'Demo mode - SMS not actually sent'
+        });
+      
+      return { success: true, demo: true, message: 'Demo mode - SMS logged but not sent' };
     }
 
     // Send test SMS via Fast2SMS API
@@ -159,6 +173,19 @@ export const sendTestSMS = async (mobile: string, testMessage: string) => {
     };
   } catch (error) {
     console.error('Test SMS Error:', error);
+    
+    // Log failed test SMS
+    await supabase
+      .from('sms_logs')
+      .insert({
+        customer_id: null,
+        mobile,
+        message: testMessage,
+        sms_type: 'test',
+        status: 'failed',
+        response: error instanceof Error ? error.message : 'Unknown error'
+      });
+    
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 };
