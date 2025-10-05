@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { EMISchedule, Purchase, Customer } from '../../types';
 import { calculateLateFee } from '../../lib/emi-calculator';
-import { sendPaymentConfirmationSMS, sendNOCSMS } from '../../lib/sms-service';
+import { sendSMS, formatPaymentConfirmationSMS, formatNOCMessage } from '../../lib/sms-service';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Badge } from '../ui/Badge';
@@ -106,13 +106,12 @@ export const PaymentManagement: React.FC = () => {
       // Send payment confirmation SMS
       if (emiSchedule.purchase?.customer) {
         const customer = emiSchedule.purchase.customer;
+        let message: string;
 
         if (remainingCount === 0) {
-          // Last EMI - send NOC SMS
-          await sendNOCSMS(
+          // Last EMI - send NOC
+          message = formatNOCMessage(
             customer.name,
-            customer.mobile,
-            customer.id,
             shopName,
             emiSchedule.purchase.product_name
           );
@@ -123,17 +122,22 @@ export const PaymentManagement: React.FC = () => {
             .update({ status: 'completed' })
             .eq('id', emiSchedule.purchase_id);
         } else {
-          // Regular payment confirmation SMS
-          await sendPaymentConfirmationSMS(
+          // Regular payment confirmation
+          message = formatPaymentConfirmationSMS(
             customer.name,
-            customer.mobile,
-            customer.id,
             shopName,
             emiSchedule.total_amount,
             emiSchedule.installment_number,
             remainingCount
           );
         }
+
+        await sendSMS(
+          customer.mobile,
+          message,
+          customer.id,
+          remainingCount === 0 ? 'noc' : 'payment_confirmation'
+        );
       }
 
       fetchEMISchedules();
