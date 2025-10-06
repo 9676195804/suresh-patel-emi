@@ -64,6 +64,14 @@ export const Settings: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
+      console.log('Starting to save settings...');
+
+      // Validate required fields
+      if (!settings.sms_api_key || !settings.sms_sender_id) {
+        alert('Please fill in both SMS API Key and Sender Phone Number before saving.');
+        return;
+      }
+
       // Create array of settings to upsert
       const settingsArray = Object.entries(settings).map(([key, value]) => ({
         key,
@@ -71,24 +79,36 @@ export const Settings: React.FC = () => {
         updated_at: new Date().toISOString()
       }));
 
+      console.log('Settings to save:', settingsArray.length);
+
       // Use individual upserts to avoid conflicts
+      let successCount = 0;
       for (const setting of settingsArray) {
-        const { error } = await supabase
+        console.log(`Saving setting: ${setting.key}`);
+        const { data, error } = await supabase
           .from('settings')
-          .upsert(setting, { 
+          .upsert(setting, {
             onConflict: 'key'
-          });
-        
+          })
+          .select();
+
         if (error) {
           console.error(`Error saving setting ${setting.key}:`, error);
           throw error;
         }
+        console.log(`Successfully saved: ${setting.key}`, data);
+        successCount++;
       }
-      
-      alert('Settings saved successfully!');
+
+      console.log(`All ${successCount} settings saved successfully!`);
+      alert(`Settings saved successfully! (${successCount} settings updated)`);
+
+      // Refresh settings from database to confirm
+      await fetchSettings();
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert(`Error saving settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      alert(`Error saving settings: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -107,18 +127,35 @@ export const Settings: React.FC = () => {
       return;
     }
 
+    // Validate phone number format
+    if (!testMobile.startsWith('+')) {
+      alert('Please enter phone number with country code (e.g., +919032195804)');
+      return;
+    }
+
     setTestLoading(true);
     try {
+      console.log('=== Starting Test SMS ===');
+      console.log('Mobile:', testMobile);
+      console.log('Message:', testMessage);
+
       const result = await sendTestSMS(testMobile, testMessage);
-      
+
+      console.log('=== Test SMS Result ===', result);
+
       if (result.success) {
-        alert(`Test SMS sent successfully!${result.demo ? ' (Demo Mode)' : '\nMessage ID: ' + (result.messageId || 'N/A')}`);
+        if (result.demo) {
+          alert('Test SMS logged in Demo Mode!\n\nPlease save your API Key and Sender Phone in settings first.');
+        } else {
+          alert(`✓ SMS sent successfully!\n\nMessage ID: ${result.messageId || 'N/A'}\nHTTP Status: ${result.httpStatus}\n\nCheck your httpsms portal to verify.`);
+        }
       } else {
-        alert(`Failed to send test SMS: ${JSON.stringify(result.error || result.response)}`);
+        const errorDetails = result.response ? JSON.stringify(result.response, null, 2) : result.error;
+        alert(`✗ Failed to send SMS\n\nHTTP Status: ${result.httpStatus}\nError: ${errorDetails}\n\nPlease check:\n1. API Key is correct\n2. Sender phone is registered with httpsms\n3. Check browser console for details`);
       }
     } catch (error) {
       console.error('Error sending test SMS:', error);
-      alert('Error sending test SMS');
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setTestLoading(false);
     }

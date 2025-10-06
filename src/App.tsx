@@ -6,6 +6,7 @@ import { CustomerManagement } from './components/admin/CustomerManagement';
 import { PurchaseManagement } from './components/admin/PurchaseManagement';
 import { PaymentManagement } from './components/admin/PaymentManagement';
 import { Settings } from './components/admin/Settings';
+import { SMSLogs } from './components/admin/SMSLogs';
 import { CustomerLogin } from './components/customer/CustomerLogin';
 import { CustomerDashboard } from './components/customer/CustomerDashboard';
 import { Navigation } from './components/Navigation';
@@ -113,6 +114,7 @@ function App() {
             {currentView === 'purchases' && <PurchaseManagement />}
             {currentView === 'payments' && <PaymentManagement />}
             {currentView === 'settings' && <Settings />}
+            {currentView === 'sms-logs' && <SMSLogs />}
           </>
         ) : (
           <CustomerDashboard />

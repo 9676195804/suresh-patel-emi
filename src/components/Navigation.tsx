@@ -1,14 +1,15 @@
 import React from 'react';
 import { adminLogout, customerLogout, getAdminUser, getCustomerUser } from '../lib/auth';
 import { Button } from './ui/Button';
-import { 
-  LayoutDashboard, 
-  Users, 
-  ShoppingCart, 
-  DollarSign, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Users,
+  ShoppingCart,
+  DollarSign,
+  Settings,
   LogOut,
-  ShoppingBag 
+  ShoppingBag,
+  MessageSquare
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -36,6 +37,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'purchases', label: 'Purchases', icon: ShoppingCart },
     { id: 'payments', label: 'Payments', icon: DollarSign },
+    { id: 'sms-logs', label: 'SMS Logs', icon: MessageSquare },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
 

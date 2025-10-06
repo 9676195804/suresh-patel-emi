@@ -50,12 +50,17 @@ export const sendSMS = async (
       return { success: true, demo: true };
     }
 
-    // Send SMS via httpsms API
-    console.log('Sending SMS via HttpSMS API...', {
-      apiUrl: 'https://api.httpsms.com/v1/messages/send',
+    // Send SMS via httpsms API - matching Python implementation exactly
+    const payload = {
       from: senderPhone,
       to: mobile,
-      messageLength: message.length
+      content: message
+    };
+
+    console.log('Sending SMS via HttpSMS API...', {
+      apiUrl: 'https://api.httpsms.com/v1/messages/send',
+      apiKey: apiKey.substring(0, 10) + '...',
+      payload
     });
 
     const response = await fetch('https://api.httpsms.com/v1/messages/send', {
@@ -65,26 +70,24 @@ export const sendSMS = async (
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        from: senderPhone,
-        to: mobile,
-        content: message
-      })
+      body: JSON.stringify(payload)
     });
 
     console.log('HttpSMS API Response Status:', response.status);
+    console.log('HttpSMS API Response Headers:', Object.fromEntries(response.headers.entries()));
 
     let result: HttpSMSResponse;
     const responseText = await response.text();
-    console.log('HttpSMS API Response:', responseText);
+    console.log('HttpSMS API Response Body:', responseText);
 
     try {
       result = JSON.parse(responseText);
-    } catch {
+    } catch (parseError) {
+      console.error('Failed to parse response:', parseError);
       result = { status: 'error', message: responseText };
     }
 
-    const isSuccess = response.status === 200 || response.status === 201;
+    const isSuccess = response.status === 200;
 
     // Log SMS to database
     await supabase
@@ -160,12 +163,17 @@ export const sendTestSMS = async (mobile: string, testMessage: string) => {
       return { success: true, demo: true, message: 'Demo mode - SMS logged but not sent' };
     }
 
-    // Send test SMS via httpsms API
-    console.log('Sending TEST SMS via HttpSMS API...', {
-      apiUrl: 'https://api.httpsms.com/v1/messages/send',
+    // Send test SMS via httpsms API - matching Python implementation exactly
+    const payload = {
       from: senderPhone,
       to: mobile,
-      messageLength: testMessage.length
+      content: testMessage
+    };
+
+    console.log('Sending TEST SMS via HttpSMS API...', {
+      apiUrl: 'https://api.httpsms.com/v1/messages/send',
+      apiKey: apiKey.substring(0, 10) + '...',
+      payload
     });
 
     const response = await fetch('https://api.httpsms.com/v1/messages/send', {
@@ -175,26 +183,24 @@ export const sendTestSMS = async (mobile: string, testMessage: string) => {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        from: senderPhone,
-        to: mobile,
-        content: testMessage
-      })
+      body: JSON.stringify(payload)
     });
 
     console.log('HttpSMS API Response Status:', response.status);
+    console.log('HttpSMS API Response Headers:', Object.fromEntries(response.headers.entries()));
 
     let result: HttpSMSResponse;
     const responseText = await response.text();
-    console.log('HttpSMS API Response:', responseText);
+    console.log('HttpSMS API Response Body:', responseText);
 
     try {
       result = JSON.parse(responseText);
-    } catch {
+    } catch (parseError) {
+      console.error('Failed to parse response:', parseError);
       result = { status: 'error', message: responseText };
     }
 
-    const isSuccess = response.status === 200 || response.status === 201;
+    const isSuccess = response.status === 200;
 
     // Log test SMS
     await supabase
