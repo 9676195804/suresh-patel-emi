@@ -51,6 +51,13 @@ export const sendSMS = async (
     }
 
     // Send SMS via httpsms API
+    console.log('Sending SMS via HttpSMS API...', {
+      apiUrl: 'https://api.httpsms.com/v1/messages/send',
+      from: senderPhone,
+      to: mobile,
+      messageLength: message.length
+    });
+
     const response = await fetch('https://api.httpsms.com/v1/messages/send', {
       method: 'POST',
       headers: {
@@ -65,7 +72,19 @@ export const sendSMS = async (
       })
     });
 
-    const result: HttpSMSResponse = await response.json();
+    console.log('HttpSMS API Response Status:', response.status);
+
+    let result: HttpSMSResponse;
+    const responseText = await response.text();
+    console.log('HttpSMS API Response:', responseText);
+
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      result = { status: 'error', message: responseText };
+    }
+
+    const isSuccess = response.status === 200 || response.status === 201;
 
     // Log SMS to database
     await supabase
@@ -75,14 +94,18 @@ export const sendSMS = async (
         mobile,
         message,
         sms_type: smsType,
-        status: response.status === 200 ? 'sent' : 'failed',
-        response: JSON.stringify(result)
+        status: isSuccess ? 'sent' : 'failed',
+        response: JSON.stringify({
+          httpStatus: response.status,
+          body: result
+        })
       });
 
     return {
-      success: response.status === 200,
+      success: isSuccess,
       messageId: result.data?.id,
-      result
+      result,
+      httpStatus: response.status
     };
   } catch (error) {
     console.error('SMS Error:', error);
@@ -138,6 +161,13 @@ export const sendTestSMS = async (mobile: string, testMessage: string) => {
     }
 
     // Send test SMS via httpsms API
+    console.log('Sending TEST SMS via HttpSMS API...', {
+      apiUrl: 'https://api.httpsms.com/v1/messages/send',
+      from: senderPhone,
+      to: mobile,
+      messageLength: testMessage.length
+    });
+
     const response = await fetch('https://api.httpsms.com/v1/messages/send', {
       method: 'POST',
       headers: {
@@ -152,7 +182,19 @@ export const sendTestSMS = async (mobile: string, testMessage: string) => {
       })
     });
 
-    const result: HttpSMSResponse = await response.json();
+    console.log('HttpSMS API Response Status:', response.status);
+
+    let result: HttpSMSResponse;
+    const responseText = await response.text();
+    console.log('HttpSMS API Response:', responseText);
+
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      result = { status: 'error', message: responseText };
+    }
+
+    const isSuccess = response.status === 200 || response.status === 201;
 
     // Log test SMS
     await supabase
@@ -162,15 +204,19 @@ export const sendTestSMS = async (mobile: string, testMessage: string) => {
         mobile,
         message: testMessage,
         sms_type: 'test',
-        status: response.status === 200 ? 'sent' : 'failed',
-        response: JSON.stringify(result)
+        status: isSuccess ? 'sent' : 'failed',
+        response: JSON.stringify({
+          httpStatus: response.status,
+          body: result
+        })
       });
 
     return {
-      success: response.status === 200,
+      success: isSuccess,
       messageId: result.data?.id,
-      message: result.status === 'success' ? 'SMS sent successfully' : result.message || 'Failed to send SMS',
-      response: result
+      message: isSuccess ? 'SMS sent successfully' : result.message || `Failed (HTTP ${response.status})`,
+      response: result,
+      httpStatus: response.status
     };
   } catch (error) {
     console.error('Test SMS Error:', error);

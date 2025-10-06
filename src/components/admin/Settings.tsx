@@ -33,15 +33,12 @@ export const Settings: React.FC = () => {
         settingsMap[setting.key] = setting.value;
       });
       
-      // Pre-fill with your API key if not already set
+      // Pre-fill with httpsms configuration if not already set
       if (!settingsMap.sms_api_key) {
-        settingsMap.sms_api_key = 'oFr2AadnjEWZKCvcyxN0VSzYquBQGl93kpwHM7JDRbU4OfmhPT3zwgxpMtlOkRfPquWZcsH6ITSNX9Ba';
+        settingsMap.sms_api_key = 'uk_2C8G719ew-bNkReJ6plBsttuoCbfi6YACKnt64q0_9W25kf39n31hAYW3Y4TqPgp';
       }
       if (!settingsMap.sms_sender_id) {
-        settingsMap.sms_sender_id = 'TXTLCL';
-      }
-      if (!settingsMap.sms_api_url) {
-        settingsMap.sms_api_url = 'https://www.fast2sms.com/dev/bulkV2';
+        settingsMap.sms_sender_id = '+919293184021';
       }
       if (!settingsMap.shop_name) {
         settingsMap.shop_name = 'Suresh Patel Kirana EMI';
@@ -115,9 +112,9 @@ export const Settings: React.FC = () => {
       const result = await sendTestSMS(testMobile, testMessage);
       
       if (result.success) {
-        alert(`Test SMS sent successfully! Request ID: ${result.requestId || 'N/A'}`);
+        alert(`Test SMS sent successfully!${result.demo ? ' (Demo Mode)' : '\nMessage ID: ' + (result.messageId || 'N/A')}`);
       } else {
-        alert(`Failed to send test SMS: ${result.error}`);
+        alert(`Failed to send test SMS: ${JSON.stringify(result.error || result.response)}`);
       }
     } catch (error) {
       console.error('Error sending test SMS:', error);
@@ -206,34 +203,29 @@ export const Settings: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Fast2SMS Configuration */}
+        {/* HttpSMS Configuration */}
         <Card>
           <CardHeader>
             <div className="flex items-center">
               <MessageSquare className="w-5 h-5 text-gray-400 mr-2" />
-              <h3 className="text-lg font-semibold">Fast2SMS Configuration</h3>
+              <h3 className="text-lg font-semibold">HttpSMS Configuration</h3>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <Input
-              label="Fast2SMS API Key"
+              label="HttpSMS API Key"
               type="password"
               value={settings.sms_api_key || ''}
               onChange={(e) => updateSetting('sms_api_key', e.target.value)}
-              placeholder="Your Fast2SMS API Key"
+              placeholder="uk_xxxxxxxxxxxxxxx"
             />
             <Input
-              label="SMS Sender ID"
+              label="Sender Phone Number (with country code)"
               value={settings.sms_sender_id || ''}
               onChange={(e) => updateSetting('sms_sender_id', e.target.value)}
-              placeholder="TXTLCL"
+              placeholder="+919293184021"
             />
-            <Input
-              label="Fast2SMS API URL"
-              value={settings.sms_api_url || ''}
-              onChange={(e) => updateSetting('sms_api_url', e.target.value)}
-              placeholder="https://www.fast2sms.com/dev/bulkV2"
-            />
+            <p className="text-xs text-gray-500">Enter the phone number registered with HttpSMS, including country code (e.g., +91 for India)</p>
           </CardContent>
         </Card>
       </div>
