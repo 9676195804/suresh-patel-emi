@@ -1,9 +1,14 @@
 import { supabase } from './supabase';
 
-interface Fast2SMSResponse {
-  return: boolean;
-  request_id: string;
-  message: string[];
+interface HttpSMSResponse {
+  status: string;
+  data?: {
+    id: string;
+    from: string;
+    to: string;
+    content: string;
+  };
+  message?: string;
 }
 
 export const sendSMS = async (
@@ -17,7 +22,7 @@ export const sendSMS = async (
     const { data: settings } = await supabase
       .from('settings')
       .select('key, value')
-      .in('key', ['sms_api_key', 'sms_sender_id', 'sms_api_url']);
+      .in('key', ['sms_api_key', 'sms_sender_id']);
 
     const settingsMap: Record<string, string> = {};
     settings?.forEach(setting => {
@@ -25,12 +30,11 @@ export const sendSMS = async (
     });
 
     const apiKey = settingsMap.sms_api_key;
-    const senderId = settingsMap.sms_sender_id || 'TXTLCL';
-    const apiUrl = settingsMap.sms_api_url || 'https://www.fast2sms.com/dev/bulkV2';
+    const senderPhone = settingsMap.sms_sender_id;
 
-    if (!apiKey) {
+    if (!apiKey || !senderPhone) {
       console.log(`Demo SMS to ${mobile}: ${message}`);
-      
+
       // Log SMS to database
       await supabase
         .from('sms_logs')
@@ -42,28 +46,27 @@ export const sendSMS = async (
           status: 'sent',
           response: 'Demo mode - SMS not actually sent'
         });
-      
+
       return { success: true, demo: true };
     }
 
-    // Send SMS via Fast2SMS API
-    const response = await fetch(apiUrl, {
+    // Send SMS via httpsms API
+    const response = await fetch('https://api.httpsms.com/v1/messages/send', {
       method: 'POST',
       headers: {
-        'Authorization': apiKey,
-        'Content-Type': 'application/json'
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: JSON.stringify({
-        sender_id: senderId,
-        message: message,
-        language: 'english',
-        route: 'p',
-        numbers: mobile
+        from: senderPhone,
+        to: mobile,
+        content: message
       })
     });
 
-    const result: Fast2SMSResponse = await response.json();
-    
+    const result: HttpSMSResponse = await response.json();
+
     // Log SMS to database
     await supabase
       .from('sms_logs')
@@ -72,18 +75,18 @@ export const sendSMS = async (
         mobile,
         message,
         sms_type: smsType,
-        status: result.return ? 'sent' : 'failed',
+        status: response.status === 200 ? 'sent' : 'failed',
         response: JSON.stringify(result)
       });
-    
-    return { 
-      success: result.return, 
-      requestId: result.request_id,
-      message: result.message 
+
+    return {
+      success: response.status === 200,
+      messageId: result.data?.id,
+      result
     };
   } catch (error) {
     console.error('SMS Error:', error);
-    
+
     // Log failed SMS
     await supabase
       .from('sms_logs')
@@ -95,7 +98,7 @@ export const sendSMS = async (
         status: 'failed',
         response: error instanceof Error ? error.message : 'Unknown error'
       });
-    
+
     return { success: false, error };
   }
 };
@@ -106,7 +109,7 @@ export const sendTestSMS = async (mobile: string, testMessage: string) => {
     const { data: settings } = await supabase
       .from('settings')
       .select('key, value')
-      .in('key', ['sms_api_key', 'sms_sender_id', 'sms_api_url']);
+      .in('key', ['sms_api_key', 'sms_sender_id']);
 
     const settingsMap: Record<string, string> = {};
     settings?.forEach(setting => {
@@ -114,12 +117,11 @@ export const sendTestSMS = async (mobile: string, testMessage: string) => {
     });
 
     const apiKey = settingsMap.sms_api_key;
-    const senderId = settingsMap.sms_sender_id || 'TXTLCL';
-    const apiUrl = settingsMap.sms_api_url || 'https://www.fast2sms.com/dev/bulkV2';
+    const senderPhone = settingsMap.sms_sender_id;
 
-    if (!apiKey) {
+    if (!apiKey || !senderPhone) {
       console.log(`Demo SMS to ${mobile}: ${testMessage}`);
-      
+
       // Log test SMS to database
       await supabase
         .from('sms_logs')
@@ -131,28 +133,27 @@ export const sendTestSMS = async (mobile: string, testMessage: string) => {
           status: 'sent',
           response: 'Demo mode - SMS not actually sent'
         });
-      
+
       return { success: true, demo: true, message: 'Demo mode - SMS logged but not sent' };
     }
 
-    // Send test SMS via Fast2SMS API
-    const response = await fetch(apiUrl, {
+    // Send test SMS via httpsms API
+    const response = await fetch('https://api.httpsms.com/v1/messages/send', {
       method: 'POST',
       headers: {
-        'Authorization': apiKey,
-        'Content-Type': 'application/json'
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: JSON.stringify({
-        sender_id: senderId,
-        message: testMessage,
-        language: 'english',
-        route: 'p',
-        numbers: mobile
+        from: senderPhone,
+        to: mobile,
+        content: testMessage
       })
     });
 
-    const result: Fast2SMSResponse = await response.json();
-    
+    const result: HttpSMSResponse = await response.json();
+
     // Log test SMS
     await supabase
       .from('sms_logs')
@@ -161,19 +162,19 @@ export const sendTestSMS = async (mobile: string, testMessage: string) => {
         mobile,
         message: testMessage,
         sms_type: 'test',
-        status: result.return ? 'sent' : 'failed',
+        status: response.status === 200 ? 'sent' : 'failed',
         response: JSON.stringify(result)
       });
-    
-    return { 
-      success: result.return, 
-      requestId: result.request_id,
-      message: result.message,
+
+    return {
+      success: response.status === 200,
+      messageId: result.data?.id,
+      message: result.status === 'success' ? 'SMS sent successfully' : result.message || 'Failed to send SMS',
       response: result
     };
   } catch (error) {
     console.error('Test SMS Error:', error);
-    
+
     // Log failed test SMS
     await supabase
       .from('sms_logs')
@@ -185,7 +186,7 @@ export const sendTestSMS = async (mobile: string, testMessage: string) => {
         status: 'failed',
         response: error instanceof Error ? error.message : 'Unknown error'
       });
-    
+
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 };
