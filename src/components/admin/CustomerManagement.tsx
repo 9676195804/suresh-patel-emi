@@ -29,7 +29,7 @@ export const CustomerManagement: React.FC = () => {
   });
   const [formData, setFormData] = useState({
     name: '',
-    mobile: '',
+    mobile: '+91',
     password: '',
     aadhaar: '',
     pan: '',
@@ -132,7 +132,7 @@ export const CustomerManagement: React.FC = () => {
   const resetForm = () => {
     setFormData({
       name: '',
-      mobile: '',
+      mobile: '+91',
       password: '',
       aadhaar: '',
       pan: '',
