@@ -281,7 +281,7 @@ export const Settings: React.FC = () => {
             <textarea
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               rows={3}
-              value={settings.sms_template_purchase_welcome || 'Dear {customer_name}, welcome to {shop_name}! Your purchase of {product_name} worth Rs.{total_price} has been processed. EMI: Rs.{emi_amount} for {tenure} months. First EMI due: {first_due_date}. Thank you!'}
+              value={settings.sms_template_purchase_welcome || 'Dear {customer_name}, welcome to {shop_name}! Your purchase of {product_name} worth Rs.{total_price} has been processed. EMI: Rs.{emi_amount} for {tenure} months. First EMI due: {first_due_date}. Thank you! For more details visit:- suresh-patel-emi-cfh0.bolt.host/'}
               onChange={(e) => updateSetting('sms_template_purchase_welcome', e.target.value)}
             />
             <p className="text-xs text-gray-500 mt-1">Variables: {'{customer_name}, {product_name}, {total_price}, {emi_amount}, {tenure}, {first_due_date}, {shop_name}'}</p>
