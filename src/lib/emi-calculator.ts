@@ -43,11 +43,55 @@ export const generateEMISchedule = (
   return schedule;
 };
 
+// Calculate late fee with 3-day grace period
+// Example: Due date 2nd → Grace period ends 5th → Charges start from 5th onwards
 export const calculateLateFee = (dueDate: string, feePerDay: number): number => {
   const due = new Date(dueDate);
   const today = new Date();
-  const diffTime = today.getTime() - due.getTime();
+
+  // Add 3 days grace period
+  const graceEndDate = new Date(due);
+  graceEndDate.setDate(graceEndDate.getDate() + 3);
+
+  // If today is before grace period end, no late fee
+  if (today <= graceEndDate) {
+    return 0;
+  }
+
+  // Calculate days after grace period
+  const diffTime = today.getTime() - graceEndDate.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
   return diffDays > 0 ? diffDays * feePerDay : 0;
+};
+
+// Check if EMI is eligible for late fees (3+ days overdue)
+export const isEligibleForLateFee = (dueDate: string): boolean => {
+  const due = new Date(dueDate);
+  const today = new Date();
+
+  // Grace period ends 3 days after due date
+  const graceEndDate = new Date(due);
+  graceEndDate.setDate(graceEndDate.getDate() + 3);
+
+  return today > graceEndDate;
+};
+
+// Calculate days overdue (after grace period)
+export const calculateDaysOverdue = (dueDate: string): number => {
+  const due = new Date(dueDate);
+  const today = new Date();
+
+  // Add 3 days grace period
+  const graceEndDate = new Date(due);
+  graceEndDate.setDate(graceEndDate.getDate() + 3);
+
+  if (today <= graceEndDate) {
+    return 0;
+  }
+
+  const diffTime = today.getTime() - graceEndDate.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  return diffDays > 0 ? diffDays : 0;
 };
