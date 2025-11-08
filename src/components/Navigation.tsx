@@ -36,6 +36,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'purchases', label: 'Purchases', icon: ShoppingCart },
+    { id: 'products', label: 'Products', icon: ShoppingBag },
     { id: 'payments', label: 'Payments', icon: DollarSign },
     { id: 'sms-logs', label: 'SMS Logs', icon: MessageSquare },
     { id: 'settings', label: 'Settings', icon: Settings }
@@ -59,7 +60,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
-                  Suresh Patel Kirana EMI
+                  SURESH PATEL EMI
                 </h1>
                 <p className="text-xs text-gray-500">
                   {userType === 'admin' ? 'Admin Portal' : 'Customer Portal'}

@@ -16,24 +16,27 @@ export interface Purchase {
   id: string;
   customer_id: string;
   product_name: string;
+  imei1?: string;
+  imei2?: string;
   total_price: number;
   down_payment: number;
-  processing_fee?: number;
-  tds_amount?: number;
-  insurance_amount?: number;
-  documentation_charges?: number;
-  other_charges?: number;
   loan_amount: number;
-  tenure: 6 | 12;
+  tenure: number;
   interest_rate: number;
   emi_amount: number;
   start_date: string;
   status: 'active' | 'completed' | 'defaulted';
   created_at: string;
-  updated_at: string;
-  customer?: Customer;
+  customer?: { name: string; mobile: string };
+  purchase_images?: { image_url: string }[];
+  processing_fee?: number;
+  tds_amount?: number;
+  insurance_amount?: number;
+  documentation_charges?: number;
+  other_charges?: number;
 }
 
+// Detailed EMI schedule row used across the app
 export interface EMISchedule {
   id: string;
   purchase_id: string;
@@ -44,25 +47,19 @@ export interface EMISchedule {
   total_amount: number;
   status: 'pending' | 'paid' | 'overdue';
   paid_date?: string;
-  late_fee: number;
-  created_at: string;
+  late_fee?: number;
+  created_at?: string;
 }
 
-export interface Payment {
+export interface EMI {
   id: string;
-  emi_schedule_id: string;
   purchase_id: string;
-  customer_id: string;
-  amount_paid: number;
-  late_fee: number;
-  payment_date: string;
-  payment_method: string;
-  notes?: string;
-  created_at: string;
+  due_date: string;
+  amount: number;
+  status: 'pending' | 'paid' | 'overdue';
 }
 
-export interface Settings {
-  id: string;
+export interface Setting {
   key: string;
   value: string;
   description?: string;
@@ -86,6 +83,26 @@ export interface DashboardStats {
   overdue_payments: number;
   total_outstanding: number;
   monthly_collections: number;
+}
+
+export interface ProductImage {
+  id?: string;
+  product_id?: string;
+  image_url: string;
+  caption?: string;
+  created_at?: string;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  offer_price?: number;
+  is_offer?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  product_images?: ProductImage[];
 }
 
 export interface CustomerOTP {

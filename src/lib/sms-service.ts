@@ -445,7 +445,7 @@ export const sendDailyReminders = async () => {
       .eq('key', 'shop_name')
       .maybeSingle();
     
-    const shopName = shopData?.value || 'Suresh Patel Kirana EMI';
+  const shopName = shopData?.value || 'SURESH PATEL EMI';
 
     // Get pending EMIs due tomorrow
     const { data: pendingEMIs } = await supabase
@@ -502,7 +502,7 @@ export const sendOverdueNotifications = async () => {
       settingsMap[setting.key] = setting.value;
     });
 
-    const shopName = settingsMap.shop_name || 'Suresh Patel Kirana EMI';
+  const shopName = settingsMap.shop_name || 'SURESH PATEL EMI';
     const lateFeePerDay = parseFloat(settingsMap.late_fee_per_day || '50');
 
     // Get overdue EMIs

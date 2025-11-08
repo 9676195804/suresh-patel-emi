@@ -39,7 +39,7 @@ export const CustomerLogin: React.FC<CustomerLoginProps> = ({ onLogin }) => {
               <ShoppingBag className="w-8 h-8 text-white" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-white">Suresh Patel Kirana EMI</h1>
+          <h1 className="text-2xl font-bold text-white">SURESH PATEL EMI</h1>
           <p className="text-white/80 mt-2">Customer Portal</p>
         </div>
 

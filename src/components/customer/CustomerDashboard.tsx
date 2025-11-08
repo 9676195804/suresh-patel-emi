@@ -7,6 +7,8 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
+import { UPIPaymentModal } from './UPIPaymentModal';
+import { buildUpiLink } from '../../lib/upi';
 import { 
   CreditCard, 
   Calendar, 
@@ -17,8 +19,11 @@ import {
   DollarSign,
   Smartphone,
   Settings,
-  Save
+  Save,
+  ShoppingBag
 } from 'lucide-react';
+import { ProductList } from './ProductList';
+
 
 interface ExtendedPurchase extends Purchase {
   emi_schedules?: EMISchedule[];
@@ -27,6 +32,7 @@ interface ExtendedPurchase extends Purchase {
 export const CustomerDashboard: React.FC = () => {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [purchases, setPurchases] = useState<ExtendedPurchase[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [upiId, setUpiId] = useState('');
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -41,12 +47,34 @@ export const CustomerDashboard: React.FC = () => {
   });
 
   useEffect(() => {
-    const customerData = getCustomerUser();
-    setCustomer(customerData);
-    if (customerData) {
-      fetchCustomerData(customerData.mobile);
-      fetchUpiId();
-    }
+    const fetchData = async () => {
+      try {
+        const customerData = await getCustomerUser();
+        setCustomer(customerData);
+
+        // Fetch products
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('is_active', true);
+          
+        if (productsError) {
+          console.error('Error fetching products:', productsError);
+        } else {
+          setProducts(productsData);
+        }
+
+        if (customerData) {
+          fetchCustomerData(customerData.mobile);
+          fetchUpiId();
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
   const fetchUpiId = async () => {
@@ -123,53 +151,66 @@ export const CustomerDashboard: React.FC = () => {
     }
   };
 
-  const handlePayment = (emiId: string, amount: number) => {
-    const phoneNumber = '9676195804';
-    const emiReference = emiId.substring(0, 8);
-    
-    // Show payment instructions without opening any app
-    const paymentInstructions = `
-💳 EMI Payment Instructions
+  const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
+  const [currentUpiLink, setCurrentUpiLink] = useState<string>('');
+  const [currentPaymentAmount, setCurrentPaymentAmount] = useState<number>(0);
+  const [currentCustomerName, setCurrentCustomerName] = useState<string>('');
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMeta, setSuccessMeta] = useState<{ amount: number; productName?: string; installmentNumber?: number; tenure?: number } | null>(null);
 
-Amount to Pay: ₹${amount}
-EMI Reference: ${emiReference}
+  const handlePayment = async (purchase: ExtendedPurchase, emi: EMISchedule) => {
+    try {
+      // Fetch UPI config
+      const [{ data: upiData }, { data: shopData }] = await Promise.all([
+        supabase.from('settings').select('value').eq('key', 'upi_id').single(),
+        supabase.from('settings').select('value').eq('key', 'shop_name').maybeSingle(),
+      ]);
 
-📱 Payment Options:
+      const upiId = upiData?.value || '9676195804@paytm';
+  const merchantName = shopData?.value || 'SURESH PATEL EMI';
+      const amount = Number(emi.total_amount + (emi.late_fee || 0));
+      const note = `EMI Payment ${emi.installment_number}/${purchase.tenure} - ${purchase.product_name}`;
+      const upiLink = buildUpiLink({ pa: upiId, pn: merchantName, am: amount, tn: note });
 
-1️⃣ PhonePe:
-   • Open PhonePe app
-   • Tap "To Mobile Number"
-   • Enter: ${phoneNumber}
-   • Amount: ₹${amount}
-   • Add note: EMI ${emiReference}
+      // Log generated UPI link
+      await supabase.from('upi_links').insert([
+        {
+          upi_link: upiLink,
+          amount,
+          customer_id: purchase.customer_id,
+          purchase_id: purchase.id,
+          emi_schedule_id: emi.id,
+          status: 'generated',
+        },
+      ]);
 
-2️⃣ Google Pay:
-   • Open Google Pay
-   • Tap "Pay"
-   • Enter mobile: ${phoneNumber}
-   • Amount: ₹${amount}
-   • Add note: EMI ${emiReference}
+      // Open modal
+      setCurrentUpiLink(upiLink);
+      setCurrentPaymentAmount(amount);
+      setCurrentCustomerName(purchase.customer?.name || '');
+      setIsUpiModalOpen(true);
+    } catch (error) {
+      console.error('Error preparing UPI payment:', error);
+      alert('Could not prepare UPI payment. Please try again.');
+    }
+  };
 
-3️⃣ Paytm:
-   • Open Paytm
-   • Tap "Pay"
-   • Enter mobile: ${phoneNumber}
-   • Amount: ₹${amount}
-   • Add note: EMI ${emiReference}
+  // Manual confirmation handler (can be replaced by backend verification hook)
+  const confirmPayment = async (purchase: ExtendedPurchase, emi: EMISchedule) => {
+    try {
+      // Update link status to completed for logging
+      await supabase
+        .from('upi_links')
+        .update({ status: 'completed' })
+        .eq('emi_schedule_id', emi.id);
 
-4️⃣ Any UPI App:
-   • Open your UPI app
-   • Send money to mobile: ${phoneNumber}
-   • Amount: ₹${amount}
-   • Add note: EMI ${emiReference}
-
-⚠️ Important:
-• Always add EMI reference in payment note
-• Contact admin after payment for confirmation
-• Keep payment screenshot for records
-    `;
-    
-    alert(paymentInstructions);
+      setIsUpiModalOpen(false);
+      setSuccessMeta({ amount: Number(emi.total_amount + (emi.late_fee || 0)), productName: purchase.product_name, installmentNumber: emi.installment_number, tenure: purchase.tenure });
+      setShowSuccess(true);
+    } catch (error) {
+      console.error('Failed to confirm payment:', error);
+      alert('Could not confirm payment. Please contact support.');
+    }
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -389,7 +430,7 @@ EMI Reference: ${emiReference}
                           {emi.status === 'pending' && (
                             <Button
                               size="sm"
-                              onClick={() => handlePayment(emi.id, emi.total_amount + emi.late_fee)}
+                              onClick={() => handlePayment(purchase, emi)}
                               className="ml-2 flex items-center"
                             >
                               <Smartphone className="w-3 h-3 mr-1" />
@@ -415,6 +456,12 @@ EMI Reference: ${emiReference}
           </CardContent>
         </Card>
       )}
+
+      {/* Available Products */}
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-4">Available Products</h2>
+        <ProductList products={products} upiId={upiId} />
+      </div>
 
       {/* Change Password Modal */}
       <Modal
@@ -454,6 +501,26 @@ EMI Reference: ${emiReference}
           </div>
         </form>
       </Modal>
+
+      {/* UPI Payment Modal */}
+      <UPIPaymentModal
+        isOpen={isUpiModalOpen}
+        onClose={() => setIsUpiModalOpen(false)}
+        upiLink={currentUpiLink}
+        amount={currentPaymentAmount}
+        customerName={currentCustomerName}
+      />
+
+      {showSuccess && successMeta && (
+        // Lightweight success overlay until backend verification exists
+        <PaymentSuccess
+          amount={successMeta.amount}
+          productName={successMeta.productName}
+          installmentNumber={successMeta.installmentNumber}
+          tenure={successMeta.tenure}
+          onClose={() => setShowSuccess(false)}
+        />
+      )}
     </div>
   );
 };

@@ -75,20 +75,40 @@ export const getAdminUser = (): AdminUser | null => {
 };
 
 export const customerLogin = async (mobile: string, password: string) => {
-  const { data: customer } = await supabase
+  // Try to find customer by exact mobile, then try with +91 prefix if not found
+  let { data: customer } = await supabase
     .from('customers')
     .select('*')
     .eq('mobile', mobile)
-    .single();
+    .maybeSingle();
+
+  if (!customer && !mobile.startsWith('+')) {
+    const withCountry = `+91${mobile}`;
+    const res = await supabase
+      .from('customers')
+      .select('*')
+      .eq('mobile', withCountry)
+      .maybeSingle();
+    customer = res.data as any;
+  }
 
   if (!customer) {
     throw new Error('Customer not found');
   }
 
   // Check password
-  const customerPassword = (customer as any).password || mobile; // Default to mobile if no password set
-  if (customerPassword !== password) {
-    throw new Error('Invalid password');
+  const storedPassword = (customer as any).password || (customer as any).password_hash || null;
+
+  // Accept if stored password matches, or if no stored password then allow default passwords
+  const defaultPasswords = [customer.mobile, 'password'];
+  if (storedPassword) {
+    if (storedPassword !== password) {
+      throw new Error('Invalid password');
+    }
+  } else {
+    if (!defaultPasswords.includes(password)) {
+      throw new Error('Invalid password');
+    }
   }
 
   // Store customer session

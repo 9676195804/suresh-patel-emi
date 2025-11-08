@@ -5,14 +5,14 @@ import { smsScheduler } from '../../lib/scheduler';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Card, CardContent, CardHeader } from '../ui/Card';
-import { Settings as SettingsIcon, Save, MessageSquare, Send, Clock } from 'lucide-react';
+import { Settings as SettingsIcon, Save, MessageSquare, Send, Clock, CreditCard } from 'lucide-react';
 
 export const Settings: React.FC = () => {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testMobile, setTestMobile] = useState('');
-  const [testMessage, setTestMessage] = useState('This is a test message from Suresh Patel Kirana EMI system.');
+  const [testMessage, setTestMessage] = useState('This is a test message from SURESH PATEL EMI system.');
   const [testLoading, setTestLoading] = useState(false);
   const [reminderLoading, setReminderLoading] = useState(false);
 
@@ -22,12 +22,17 @@ export const Settings: React.FC = () => {
 
   const fetchSettings = async () => {
     try {
+      console.log('Fetching settings from database...');
       const { data, error } = await supabase
         .from('settings')
         .select('key, value');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error fetching settings:', error);
+        throw error;
+      }
 
+      console.log('Settings fetched:', data?.length, 'settings');
       const settingsMap: Record<string, string> = {};
       data?.forEach(setting => {
         settingsMap[setting.key] = setting.value;
@@ -41,7 +46,7 @@ export const Settings: React.FC = () => {
         settingsMap.sms_sender_id = '+919293184021';
       }
       if (!settingsMap.shop_name) {
-        settingsMap.shop_name = 'Suresh Patel Kirana EMI';
+        settingsMap.shop_name = 'SURESH PATEL EMI';
       }
       if (!settingsMap.default_interest_rate) {
         settingsMap.default_interest_rate = '24';
@@ -53,9 +58,28 @@ export const Settings: React.FC = () => {
         settingsMap.upi_id = 'jadhavsuresh2512@axl';
       }
       
+      // Set default SMS templates if not present
+      if (!settingsMap.sms_template_purchase_welcome) {
+        settingsMap.sms_template_purchase_welcome = 'Dear {customer_name}, welcome to {shop_name}! Your purchase of {product_name} worth Rs.{total_price} has been processed. EMI: Rs.{emi_amount} for {tenure} months. First EMI due: {first_due_date}. Thank you! For more details visit:- suresh-patel-emi-cfh0.bolt.host/';
+      }
+      if (!settingsMap.sms_template_payment_confirmation) {
+        settingsMap.sms_template_payment_confirmation = 'Dear {customer_name}, your EMI payment of Rs.{emi_amount} for installment {installment_number} has been received. {remaining_installments} installments remaining. Thank you! - {shop_name}';
+      }
+      if (!settingsMap.sms_template_payment_reminder) {
+        settingsMap.sms_template_payment_reminder = 'Dear {customer_name}, reminder: Your EMI of Rs.{emi_amount} is due on {due_date}. Please make payment on time. - {shop_name}';
+      }
+      if (!settingsMap.sms_template_overdue_notice) {
+        settingsMap.sms_template_overdue_notice = 'Dear {customer_name}, your EMI of Rs.{emi_amount} is overdue. Late fee of Rs.{late_fee} has been added. Please pay immediately. - {shop_name}';
+      }
+      if (!settingsMap.sms_template_noc) {
+        settingsMap.sms_template_noc = 'Dear {customer_name}, congratulations! You have successfully completed all EMI payments for {product_name}. No Objection Certificate (NOC) is hereby issued. Thank you for your business! - {shop_name}';
+      }
+      
+      console.log('Settings map created:', Object.keys(settingsMap));
       setSettings(settingsMap);
     } catch (error) {
       console.error('Error fetching settings:', error);
+      alert(`Error loading settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -72,36 +96,82 @@ export const Settings: React.FC = () => {
         return;
       }
 
-      // Create array of settings to upsert
-      const settingsArray = Object.entries(settings).map(([key, value]) => ({
-        key,
-        value: value || '',
-        updated_at: new Date().toISOString()
-      }));
+      // Validate SMS template fields
+      const smsTemplateKeys = [
+        'sms_template_purchase_welcome',
+        'sms_template_payment_confirmation',
+        'sms_template_payment_reminder',
+        'sms_template_overdue_notice',
+        'sms_template_noc'
+      ];
+
+      for (const key of smsTemplateKeys) {
+        const template = settings[key];
+        if (template && template.length > 1000) {
+          alert(`SMS template "${key}" is too long. Maximum 1000 characters allowed.`);
+          return;
+        }
+      }
+
+      // Validate phone number format
+      if (settings.sms_sender_id && !settings.sms_sender_id.match(/^\+?[1-9]\d{1,14}$/)) {
+        alert('Please enter a valid phone number for SMS Sender ID (e.g., +919293184021)');
+        return;
+      }
+
+      // Create array of settings to upsert with proper data sanitization
+      const settingsArray = Object.entries(settings).map(([key, value]) => {
+        let sanitizedValue = value || '';
+        
+        // Sanitize SMS templates - remove any potentially harmful characters
+        if (key.startsWith('sms_template_')) {
+          sanitizedValue = sanitizedValue.replace(/[<>]/g, ''); // Remove HTML tags
+        }
+        
+        return {
+          key,
+          value: sanitizedValue,
+          updated_at: new Date().toISOString()
+        };
+      });
 
       console.log('Settings to save:', settingsArray.length);
 
-      // Use individual upserts to avoid conflicts
+      // Use individual upserts to avoid conflicts and provide better error handling
       let successCount = 0;
+      const errors: string[] = [];
+      
       for (const setting of settingsArray) {
-        console.log(`Saving setting: ${setting.key}`);
-        const { data, error } = await supabase
-          .from('settings')
-          .upsert(setting, {
-            onConflict: 'key'
-          })
-          .select();
+        try {
+          console.log(`Saving setting: ${setting.key}`);
+          const { data, error } = await supabase
+            .from('settings')
+            .upsert(setting, {
+              onConflict: 'key'
+            })
+            .select();
 
-        if (error) {
-          console.error(`Error saving setting ${setting.key}:`, error);
-          throw error;
+          if (error) {
+            console.error(`Error saving setting ${setting.key}:`, error);
+            errors.push(`${setting.key}: ${error.message}`);
+            continue; // Continue with other settings even if one fails
+          }
+          
+          console.log(`Successfully saved: ${setting.key}`, data);
+          successCount++;
+        } catch (err) {
+          console.error(`Exception saving setting ${setting.key}:`, err);
+          errors.push(`${setting.key}: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
-        console.log(`Successfully saved: ${setting.key}`, data);
-        successCount++;
       }
 
-      console.log(`All ${successCount} settings saved successfully!`);
-      alert(`Settings saved successfully! (${successCount} settings updated)`);
+      if (errors.length > 0) {
+        console.warn(`Some settings failed to save:`, errors);
+        alert(`Settings saved with warnings! (${successCount}/${settingsArray.length} settings updated)\n\nFailed settings:\n${errors.join('\n')}`);
+      } else {
+        console.log(`All ${successCount} settings saved successfully!`);
+        alert(`Settings saved successfully! (${successCount} settings updated)`);
+      }
 
       // Refresh settings from database to confirm
       await fetchSettings();
@@ -239,6 +309,8 @@ export const Settings: React.FC = () => {
             />
           </CardContent>
         </Card>
+
+
 
         {/* HttpSMS Configuration */}
         <Card>

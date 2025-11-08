@@ -101,7 +101,7 @@ export const PaymentManagement: React.FC = () => {
         .eq('key', 'shop_name')
         .maybeSingle();
       
-      const shopName = shopData?.value || 'Suresh Patel Kirana EMI';
+  const shopName = shopData?.value || 'SURESH PATEL EMI';
 
       // Send SMS notification
       if (emiSchedule.purchase?.customer) {

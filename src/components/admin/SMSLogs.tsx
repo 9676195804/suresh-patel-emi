@@ -25,7 +25,24 @@ export const SMSLogs: React.FC = () => {
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+
+    // Set up real-time subscription
+    const subscription = supabase
+      .channel('sms_logs_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'sms_logs' },
+        (payload) => {
+          console.log('SMS log change received:', payload);
+          fetchLogs(); // Refresh logs when changes occur
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [filter]); // Re-subscribe when filter changes
 
   const fetchLogs = async () => {
     setLoading(true);

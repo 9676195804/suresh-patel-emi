@@ -7,6 +7,7 @@ import { PurchaseManagement } from './components/admin/PurchaseManagement';
 import { PaymentManagement } from './components/admin/PaymentManagement';
 import { Settings } from './components/admin/Settings';
 import { SMSLogs } from './components/admin/SMSLogs';
+import { Products } from './components/admin/Products';
 import { CustomerLogin } from './components/customer/CustomerLogin';
 import { CustomerDashboard } from './components/customer/CustomerDashboard';
 import { Navigation } from './components/Navigation';
@@ -27,6 +28,13 @@ function App() {
     }
   }, [adminUser, customerUser]);
 
+  useEffect(() => {
+    const smsScheduler = (window as any).smsScheduler;
+    if (smsScheduler) {
+      smsScheduler.start();
+    }
+  }, []);
+
   const handleAdminLogin = () => {
     setAdminUser(getAdminUser());
   };
@@ -42,7 +50,7 @@ function App() {
         <div className="w-full max-w-md space-y-6">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Suresh Patel Kirana EMI
+              Suresh Patel EMI
             </h1>
             <p className="text-gray-600">Choose your portal</p>
           </div>
@@ -112,6 +120,7 @@ function App() {
             {currentView === 'dashboard' && <AdminDashboard onViewChange={setCurrentView} />}
             {currentView === 'customers' && <CustomerManagement />}
             {currentView === 'purchases' && <PurchaseManagement />}
+            {currentView === 'products' && <Products />}
             {currentView === 'payments' && <PaymentManagement />}
             {currentView === 'settings' && <Settings />}
             {currentView === 'sms-logs' && <SMSLogs />}

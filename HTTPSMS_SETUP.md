@@ -115,7 +115,7 @@ Body:
 {
   "from": "+919293184021",
   "to": "+919032195804",
-  "content": "This is a test message from Suresh Patel Kirana EMI system."
+  "content": "This is a test message from Suresh Patel EMI system."
 }
 ```
 
