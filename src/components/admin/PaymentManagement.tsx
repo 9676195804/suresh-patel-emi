@@ -3,7 +3,6 @@ import { supabase } from '../../lib/supabase';
 import { EMISchedule, Purchase, Customer } from '../../types';
 import { calculateLateFee } from '../../lib/emi-calculator';
 import { sendPaymentConfirmationSMS, sendNOCSMS } from '../../lib/sms-service';
-import { generateNOCDownloadLink } from '../../lib/noc-generator';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Badge } from '../ui/Badge';
@@ -109,36 +108,13 @@ export const PaymentManagement: React.FC = () => {
         const customer = emiSchedule.purchase.customer;
 
         if (remainingCount === 0) {
-          // Last EMI - generate NOC and send SMS with download link
-          // Fetch additional shop details for NOC
-          const { data: extraSettings } = await supabase
-            .from('settings')
-            .select('key, value')
-            .in('key', ['shop_signature_url', 'sms_sender_id', 'shop_address', 'shop_email', 'shop_gstin', 'shop_proprietor']);
-
-          const settingsMap: Record<string, string> = {};
-          extraSettings?.forEach(s => { settingsMap[s.key] = s.value; });
-
-          const nocLink = await generateNOCDownloadLink({
-            purchase: emiSchedule.purchase,
-            shopDetails: {
-              name: shopName,
-              address: settingsMap.shop_address || '',
-              phone: settingsMap.sms_sender_id || '',
-              proprietor: settingsMap.shop_proprietor || undefined,
-              gstin: settingsMap.shop_gstin || undefined,
-              email: settingsMap.shop_email || undefined,
-            },
-            shopSignUrl: settingsMap.shop_signature_url || ''
-          });
-          
+          // Last EMI - send NOC SMS
           await sendNOCSMS(
             customer.name,
             customer.mobile,
             customer.id,
             emiSchedule.purchase.product_name,
             shopName,
-            nocLink
           );
           
           // Update purchase status to completed

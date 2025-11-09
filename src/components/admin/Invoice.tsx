@@ -4,7 +4,7 @@ import { Purchase, EMISchedule } from '../../types';
 interface InvoiceProps {
   purchase: Purchase;
   emis: EMISchedule[];
-  shopDetails: { name: string; address: string; phone: string; signature?: string };
+  shopDetails: { name: string; address: string; phone: string };
   purchaseImages?: string[];
 }
 
@@ -12,13 +12,6 @@ export const Invoice: React.FC<InvoiceProps> = ({ purchase, emis, shopDetails, p
   return (
     <div className="p-8 bg-white">
       <div className="text-center mb-8">
-        {shopDetails.signature && (
-          <img
-            src={shopDetails.signature}
-            alt={`${shopDetails.name} logo`}
-            className="h-16 w-auto mx-auto mb-2 object-contain"
-          />
-        )}
         <h1 className="text-2xl font-bold">{shopDetails.name}</h1>
         <p>{shopDetails.address}</p>
         <p>{shopDetails.phone}</p>
@@ -122,20 +115,7 @@ export const Invoice: React.FC<InvoiceProps> = ({ purchase, emis, shopDetails, p
       <div className="mt-16 flex justify-between">
         <div>
           <p><strong>Shop Signature</strong></p>
-          {shopDetails.signature ? (
-            <img 
-              src={shopDetails.signature} 
-              alt="Shop Signature" 
-              className="mt-2 max-w-48 max-h-20 object-contain"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                target.nextElementSibling?.classList.remove('hidden');
-              }}
-            />
-          ) : (
-            <div className="mt-8 border-t border-gray-400 w-48"></div>
-          )}
+          <div className="mt-8 border-t border-gray-400 w-48"></div>
         </div>
         <div>
           <p><strong>Customer Signature</strong></p>

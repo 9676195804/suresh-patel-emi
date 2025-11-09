@@ -6,8 +6,6 @@ export interface AdminUser {
   created_at: string;
 }
 
-
-
 export const adminLogin = async (username: string, password: string) => {
   console.log('Admin login attempt for username:', username);
 
@@ -31,17 +29,6 @@ export const adminLogin = async (username: string, password: string) => {
       .maybeSingle();
 
     if (error || !data) {
-      // Cloud unreachable – allow local demo credentials
-      if (username === '9676195804' && password === '970512') {
-        const localAdmin = {
-          id: '00000000-0000-0000-0000-000000000001',
-          username: '9676195804',
-          created_at: new Date().toISOString()
-        };
-        localStorage.setItem('admin_user', JSON.stringify(localAdmin));
-        localStorage.setItem('admin_authenticated', 'true');
-        return localAdmin;
-      }
       throw new Error('Invalid username or password');
     }
 
@@ -88,19 +75,15 @@ export const getAdminUser = (): AdminUser | null => {
 };
 
 export const customerLogin = async (mobile: string, password: string) => {
-  // Normalize mobile number - remove +91 prefix if present
-  const normalizedMobile = mobile.replace(/^\+91/, '');
-  
-  // Try to find customer by normalized mobile number
+  // Try to find customer by exact mobile, then try with +91 prefix if not found
   let { data: customer } = await supabase
     .from('customers')
     .select('*')
-    .eq('mobile', normalizedMobile)
+    .eq('mobile', mobile)
     .maybeSingle();
 
-  // If not found, try with +91 prefix
-  if (!customer) {
-    const withCountry = `+91${normalizedMobile}`;
+  if (!customer && !mobile.startsWith('+')) {
+    const withCountry = `+91${mobile}`;
     const res = await supabase
       .from('customers')
       .select('*')
@@ -117,8 +100,7 @@ export const customerLogin = async (mobile: string, password: string) => {
   const storedPassword = (customer as any).password || (customer as any).password_hash || null;
 
   // Accept if stored password matches, or if no stored password then allow default passwords
-  // Default passwords should also work with normalized mobile (without +91)
-  const defaultPasswords = [customer.mobile.replace(/^\+91/, ''), 'password'];
+  const defaultPasswords = [customer.mobile, 'password'];
   if (storedPassword) {
     if (storedPassword !== password) {
       throw new Error('Invalid password');

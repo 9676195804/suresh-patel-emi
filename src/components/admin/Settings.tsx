@@ -66,18 +66,13 @@ export const Settings: React.FC = () => {
         settingsMap.sms_template_payment_confirmation = 'Dear {customer_name}, your EMI payment of Rs.{emi_amount} for installment {installment_number} has been received. {remaining_installments} installments remaining. Thank you! - {shop_name}';
       }
       if (!settingsMap.sms_template_payment_reminder) {
-        settingsMap.sms_template_payment_reminder = 'Dear {customer_name}, reminder: Your EMI of Rs.{emi_amount} is due on {due_date}. Please make payment on time. Pay now: {payment_link} - {shop_name}';
+        settingsMap.sms_template_payment_reminder = 'Dear {customer_name}, reminder: Your EMI of Rs.{emi_amount} is due on {due_date}. Please make payment on time. - {shop_name}';
       }
       if (!settingsMap.sms_template_overdue_notice) {
         settingsMap.sms_template_overdue_notice = 'Dear {customer_name}, your EMI of Rs.{emi_amount} is overdue. Late fee of Rs.{late_fee} has been added. Please pay immediately. - {shop_name}';
       }
       if (!settingsMap.sms_template_noc) {
         settingsMap.sms_template_noc = 'Dear {customer_name}, congratulations! You have successfully completed all EMI payments for {product_name}. No Objection Certificate (NOC) is hereby issued. Thank you for your business! - {shop_name}';
-      }
-      
-      // Set default shop signature if not present
-      if (!settingsMap.shop_signature_url) {
-        settingsMap.shop_signature_url = '';
       }
       
       console.log('Settings map created:', Object.keys(settingsMap));
@@ -312,36 +307,6 @@ export const Settings: React.FC = () => {
               onChange={(e) => updateSetting('upi_id', e.target.value)}
               placeholder="jadhavsuresh2512@axl"
             />
-            
-            {/* Shop Signature Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Shop Signature Image
-              </label>
-              <div className="flex items-center space-x-4">
-                <Input
-                  label="Signature Image URL"
-                  value={settings.shop_signature_url || ''}
-                  onChange={(e) => updateSetting('shop_signature_url', e.target.value)}
-                  placeholder="https://example.com/signature.png"
-                  className="flex-1"
-                />
-                {settings.shop_signature_url && (
-                  <img 
-                    src={settings.shop_signature_url} 
-                    alt="Shop Signature Preview" 
-                    className="w-20 h-20 object-contain border border-gray-300 rounded"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                    }}
-                  />
-                )}
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Upload your shop's signature image to display on invoices and certificates
-              </p>
-            </div>
           </CardContent>
         </Card>
 
@@ -414,10 +379,10 @@ export const Settings: React.FC = () => {
             <textarea
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               rows={3}
-              value={settings.sms_template_payment_reminder || 'Dear {customer_name}, reminder: Your EMI of Rs.{emi_amount} is due on {due_date}. Please make payment on time. Pay now: {payment_link} - {shop_name}'}
+              value={settings.sms_template_payment_reminder || 'Dear {customer_name}, reminder: Your EMI of Rs.{emi_amount} is due on {due_date}. Please make payment on time. - {shop_name}'}
               onChange={(e) => updateSetting('sms_template_payment_reminder', e.target.value)}
             />
-            <p className="text-xs text-gray-500 mt-1">Variables: {'{customer_name}, {emi_amount}, {due_date}, {payment_link}, {shop_name}'}</p>
+            <p className="text-xs text-gray-500 mt-1">Variables: {'{customer_name}, {emi_amount}, {due_date}, {shop_name}'}</p>
           </div>
 
           <div>

@@ -9,7 +9,6 @@ import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { UPIPaymentModal } from './UPIPaymentModal';
 import { buildUpiLink } from '../../lib/upi';
-import { generateNOCDownloadLink } from '../../lib/noc-generator';
 import { 
   CreditCard, 
   Calendar, 
@@ -21,8 +20,7 @@ import {
   Smartphone,
   Settings,
   Save,
-  ShoppingBag,
-  Download
+  ShoppingBag
 } from 'lucide-react';
 import { ProductList } from './ProductList';
 
@@ -171,16 +169,7 @@ export const CustomerDashboard: React.FC = () => {
       const upiId = upiData?.value || '9676195804@paytm';
   const merchantName = shopData?.value || 'SURESH PATEL EMI';
       const amount = Number(emi.total_amount + (emi.late_fee || 0));
-
-      // Serial-payment guard: ensure all earlier EMIs are paid
-      const idx = purchase.emi_schedules.findIndex(e => e.id === emi.id);
-      const previousPending = purchase.emi_schedules.slice(0, idx).some(e => e.status !== 'paid');
-      if (previousPending) {
-        alert('Please pay all previous installments first');
-        return;
-      }
-
-      const note = `EMI Payment ${emi.installment_number}/${purchase.tenure}`;
+      const note = `EMI Payment ${emi.installment_number}/${purchase.tenure} - ${purchase.product_name}`;
       const upiLink = buildUpiLink({ pa: upiId, pn: merchantName, am: amount, tn: note });
 
       // Log generated UPI link
@@ -255,50 +244,6 @@ export const CustomerDashboard: React.FC = () => {
       alert('Failed to update password');
     } finally {
       setPasswordLoading(false);
-    }
-  };
-
-  const handleNOCDownload = async (purchase: Purchase) => {
-    try {
-      if (!customer) return;
-      
-      // Get shop name
-      const { data: shopData } = await supabase
-        .from('settings')
-        .select('value')
-        .eq('key', 'shop_name')
-        .maybeSingle();
-      
-      const shopName = shopData?.value || 'SURESH PATEL EMI';
-
-      // Fetch additional shop details for NOC
-      const { data: extraSettings } = await supabase
-        .from('settings')
-        .select('key, value')
-        .in('key', ['shop_signature_url', 'sms_sender_id', 'shop_address', 'shop_email', 'shop_gstin', 'shop_proprietor']);
-
-      const settingsMap: Record<string, string> = {};
-      extraSettings?.forEach(s => { settingsMap[s.key] = s.value; });
-      
-      const nocLink = await generateNOCDownloadLink({
-        purchase,
-        shopDetails: {
-          name: shopName,
-          address: settingsMap.shop_address || '',
-          phone: settingsMap.sms_sender_id || '',
-          proprietor: settingsMap.shop_proprietor || undefined,
-          gstin: settingsMap.shop_gstin || undefined,
-          email: settingsMap.shop_email || undefined,
-        },
-        shopSignUrl: settingsMap.shop_signature_url || ''
-      });
-      
-      if (nocLink) {
-        window.open(nocLink, '_blank');
-      }
-    } catch (error) {
-      console.error('Error generating NOC:', error);
-      alert('Failed to generate NOC certificate. Please contact support.');
     }
   };
 
@@ -438,28 +383,15 @@ export const CustomerDashboard: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  purchase.status === 'active' 
-                    ? 'bg-green-100 text-green-800' 
-                    : purchase.status === 'completed'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {purchase.status}
-                </span>
-                {purchase.status === 'completed' && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => handleNOCDownload(purchase)}
-                    className="flex items-center"
-                  >
-                    <Download className="w-4 h-4 mr-1" />
-                    Download NOC
-                  </Button>
-                )}
-              </div>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                purchase.status === 'active' 
+                  ? 'bg-green-100 text-green-800' 
+                  : purchase.status === 'completed'
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-red-100 text-red-800'
+              }`}>
+                {purchase.status}
+              </span>
             </div>
           </CardHeader>
           <CardContent>
@@ -495,23 +427,16 @@ export const CustomerDashboard: React.FC = () => {
                       <td className="py-3">
                         <div className="flex items-center space-x-2">
                           {getStatusBadge(emi.status, emi.due_date)}
-                          {emi.status === 'pending' && (() => {
-                            const idx = purchase.emi_schedules.findIndex(e => e.id === emi.id);
-                            // Block if ANY previous EMI is still pending
-                            const previousPending = purchase.emi_schedules.slice(0, idx).some(e => e.status !== 'paid');
-                            return (
-                              <Button
-                                size="sm"
-                                onClick={() => handlePayment(purchase, emi)}
-                                disabled={previousPending}
-                                title={previousPending ? 'Please pay previous installments first' : ''}
-                                className="ml-2 flex items-center"
-                              >
-                                <Smartphone className="w-3 h-3 mr-1" />
-                                Pay
-                              </Button>
-                            );
-                          })()}
+                          {emi.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handlePayment(purchase, emi)}
+                              className="ml-2 flex items-center"
+                            >
+                              <Smartphone className="w-3 h-3 mr-1" />
+                              Pay
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

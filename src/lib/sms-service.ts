@@ -337,8 +337,7 @@ export const sendPaymentReminderSMS = async (
   customerId: string,
   emiAmount: number,
   dueDate: string,
-  shopName: string,
-  paymentLink?: string
+  shopName: string
 ) => {
   try {
     // Get template from settings
@@ -348,20 +347,14 @@ export const sendPaymentReminderSMS = async (
       .eq('key', 'sms_template_payment_reminder')
       .maybeSingle();
 
-    let template = templateData?.value || 
+    const template = templateData?.value || 
       'Dear {customer_name}, reminder: Your EMI of Rs.{emi_amount} is due on {due_date}. Please make payment on time. - {shop_name}';
-
-    // Add payment link to template if provided
-    if (paymentLink) {
-      template += ' Pay now: {payment_link}';
-    }
 
     const message = replaceMessageVariables(template, {
       customer_name: customerName,
       emi_amount: emiAmount,
       due_date: dueDate,
-      shop_name: shopName,
-      payment_link: paymentLink || ''
+      shop_name: shopName
     });
 
     return await sendSMS(customerMobile, message, customerId, 'payment_reminder');
@@ -409,8 +402,7 @@ export const sendNOCSMS = async (
   customerMobile: string,
   customerId: string,
   productName: string,
-  shopName: string,
-  downloadLink?: string
+  shopName: string
 ) => {
   try {
     // Get template from settings
@@ -420,19 +412,13 @@ export const sendNOCSMS = async (
       .eq('key', 'sms_template_noc')
       .maybeSingle();
 
-    let template = templateData?.value || 
+    const template = templateData?.value || 
       'Dear {customer_name}, congratulations! You have successfully completed all EMI payments for {product_name}. No Objection Certificate (NOC) is hereby issued. Thank you for your business! - {shop_name}';
-
-    // Add download link to template if provided
-    if (downloadLink) {
-      template += ' Download your NOC certificate here: {download_link}';
-    }
 
     const message = replaceMessageVariables(template, {
       customer_name: customerName,
       product_name: productName,
-      shop_name: shopName,
-      download_link: downloadLink || ''
+      shop_name: shopName
     });
 
     return await sendSMS(customerMobile, message, customerId, 'noc');

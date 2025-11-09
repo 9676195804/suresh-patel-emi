@@ -26,7 +26,7 @@ export const PurchaseManagement: React.FC = () => {
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const [selectedPurchaseForInvoice, setSelectedPurchaseForInvoice] = useState<Purchase | null>(null);
   const [invoiceEmis, setInvoiceEmis] = useState<EMISchedule[]>([]);
-  const [shopDetails, setShopDetails] = useState({ name: '', address: '', phone: '', signature: '' });
+  const [shopDetails, setShopDetails] = useState({ name: '', address: '', phone: '' });
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [testFile, setTestFile] = useState<File | null>(null);
   const [testResponse, setTestResponse] = useState<any | null>(null);
@@ -423,8 +423,7 @@ export const PurchaseManagement: React.FC = () => {
       setShopDetails({
   name: details.shop_name || 'SURESH PATEL EMI',
         address: details.shop_address || '',
-        phone: details.shop_phone || '',
-        signature: details.shop_signature_url || ''
+        phone: details.shop_phone || ''
       });
 
       setSelectedPurchaseForInvoice(purchase);
