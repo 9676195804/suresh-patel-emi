@@ -1,1 +1,5 @@
 EMI management system
+‎# Supabase Configuration
+‎VITE_SUPABASE_URL=https://istolikjzbdiwltccggh.supabase.co
+‎VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdG9saWtqemJkaXdsdGNjZ2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNTA4NDIsImV4cCI6MjA3NDgyNjg0Mn0.gCV0aYhgPbPAJAV-3u1sF57rBrkTZ5UxgLXDi8ThlxY
+‎
